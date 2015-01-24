@@ -1,0 +1,7 @@
+gantryos
+logs
+logs/
+logs/*
+Godeps/_workspace
+Godeps/_workspace/
+Godeps/_workspace/*
