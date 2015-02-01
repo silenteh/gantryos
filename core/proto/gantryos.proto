@@ -1,0 +1,568 @@
+package proto;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "envelope.proto";
+
+option (gogoproto.gostring_all) = true;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) =  true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+
+/**
+ * Describes a master. This will probably have more fields in the
+ * future which might be used, for example, to link a framework webui
+ * to a master webui.
+ */
+message MasterInfo {
+  optional MessageType message_type = 1;
+  optional string id = 2;
+  optional uint32 ip = 3;
+  optional uint32 port = 4 [default = 5050];
+  optional string pid = 5;
+  optional string hostname = 6;
+}
+
+
+/**
+ * Describes a slave. Note that the 'id' field is only available after
+ * a slave is registered with the master, and is made available here
+ * to facilitate re-registration.  If checkpoint is set, the slave is
+ * checkpointing its own information and potentially frameworks'
+ * information (if a framework has checkpointing enabled).
+ */
+message SlaveInfo {
+  optional MessageType message_type = 1;
+  optional string hostname = 2;
+  repeated Resource resources = 3;  
+  optional string slave_id = 4;
+  optional bool checkpoint = 5 [default = false];
+  optional int32 port = 6 [default = 5051];
+
+}
+
+
+/**
+ * Describes some resources available on a slave. An offer only
+ * contains resources from a single slave.
+ */
+message ResourceOffer {
+  optional MessageType message_type = 1;
+  optional string offer_id = 2;  
+  optional string slave_id = 3;
+  optional string hostname = 4;
+  repeated Resource resources = 5;    
+}
+
+
+/**
+ * Describes a task. Passed from the scheduler all the way to an
+ * executor (see SchedulerDriver::launchTasks and
+ * Executor::launchTask). Either ExecutorInfo or CommandInfo should be set.
+ * A different executor can be used to launch this task, and subsequent tasks
+ * meant for the same executor can reuse the same ExecutorInfo struct.
+ */
+message TaskInfo {
+  optional MessageType message_type = 1;
+  optional string name = 2;
+  optional string task_id = 3;
+  optional SlaveInfo slave = 4;
+  optional Resource resources = 5;  
+  optional CommandInfo command = 6;
+  // Task provided with a container will launch the container as part
+  // of this task paired with the task's CommandInfo.
+  optional ContainerInfo container = 7;
+  optional bytes data = 8;
+  // A health check for the task (currently in *alpha* and initial
+  // support will only be for TaskInfo's that have a CommandInfo).
+  optional HealthCheck health_check = 9;
+
+  // Labels are free-form key value pairs which are exposed through
+  // master and slave endpoints. Labels will not be interpreted or
+  // acted upon by Mesos itself. As opposed to the data field, labels
+  // will be kept in memory on master and slave processes. Therefore,
+  // labels should be used to tag tasks with light-weight meta-data.
+  optional Labels labels = 10;
+
+  // Service discovery information for the task. It is not interpreted
+  // or acted upon by Mesos. It is up to a service discovery system
+  // to use this information as needed and to handle tasks without
+  // service discovery information.
+  optional DiscoveryInfo discovery = 11;
+}
+
+
+/**
+ * Describes possible task states. IMPORTANT: Mesos assumes tasks that
+ * enter terminal states (see below) imply the task is no longer
+ * running and thus clean up any thing associated with the task
+ * (ultimately offering any resources being consumed by that task to
+ * another task).
+ */
+enum TaskState {
+  TASK_STAGING = 0;  // Initial state. Framework status updates should not use.
+  TASK_STARTING = 1;
+  TASK_RUNNING = 2;
+  TASK_FINISHED = 3; // TERMINAL.
+  TASK_FAILED = 4;   // TERMINAL.
+  TASK_KILLED = 5;   // TERMINAL.
+  TASK_LOST = 6;     // TERMINAL.
+  TASK_ERROR =7;	 // TERMINAL. 
+}
+
+
+/**
+ * Describes possible task states. IMPORTANT: Mesos assumes tasks that
+ * enter terminal states (see below) imply the task is no longer
+ * running and thus clean up any thing associated with the task
+ * (ultimately offering any resources being consumed by that task to
+ * another task).
+ */
+enum ResourceType {
+  CPU = 0;  
+  MEMORY = 1;
+  PORTS = 2;
+  DISK = 3; 
+  BANDWIDTH = 4;
+  GPU = 5;   
+}
+
+/**
+ * Describes the current status of a task.
+ */
+message TaskStatus {
+  optional MessageType message_type = 1;
+  optional string task_id = 2;
+  optional TaskState state = 3;
+  optional string message = 4; // Possible message explaining state.
+  optional bytes data = 5;
+  optional SlaveInfo slave = 6;  
+  optional double timestamp = 7;
+
+  // Describes whether the task has been determined to be healthy
+  // (true) or unhealthy (false) according to the HealthCheck field in
+  // the command info.
+  optional bool healthy = 8;
+}
+
+
+/**
+ * Describes possible filters that can be applied to unused resources
+ * (see SchedulerDriver::launchTasks) to influence the allocator.
+ */
+message Filters {
+  // Time to consider unused resources refused. Note that all unused
+  // resources will be considered refused and use the default value
+  // (below) regardless of whether Filters was passed to
+  // SchedulerDriver::launchTasks. You MUST pass Filters with this
+  // field set to change this behavior (i.e., get another offer which
+  // includes unused resources sooner or later than the default).
+  optional MessageType message_type = 1;
+  optional double refuse_seconds = 2 [default = 5.0];
+
+  // rebalance is used to distribute an app equally over all the slaves
+  optional bool rebalance = 3 [default = true];
+}
+
+
+/**
+* Describes a collection of environment variables. This is used with
+* CommandInfo in order to set environment variables before running a
+* command.
+*/
+message Environment {
+  optional MessageType message_type = 1;
+  message Variable {
+    optional string name = 1;
+    optional string value = 2;
+  }
+
+  repeated Variable variables = 2;
+}
+
+/**
+ * Describes a resource on a machine. A resource can take on one of
+ * three types: scalar (double), a list of finite and discrete ranges
+ * (e.g., [1-10, 20-30]), or a set of items. A resource is described
+ * using the standard protocol buffer "union" trick.
+ *
+ * TODO(benh): Add better support for "expected" resources (e.g.,
+ * cpus, memory, disk, network).
+ */
+message Resource {
+  optional MessageType message_type = 1;
+  optional ResourceType resource_type = 2;
+  optional Value.Type type = 3;
+  optional Value.Scalar scalar = 4;
+  optional Value.Ranges ranges = 5;
+  optional Value.Set set = 6;
+  optional string role = 7 [default = "*"];
+}
+
+/**
+ * Describes an Attribute or Resource "value". A value is described
+ * using the standard protocol buffer "union" trick.
+ */
+message Value {
+  enum Type {
+    SCALAR = 0;
+    RANGES = 1;
+    SET = 2;
+    TEXT = 3;
+  }
+
+  message Scalar {
+    optional double value = 1;
+  }
+
+  message Range {
+    optional uint64 begin = 1;
+    optional uint64 end = 2;
+  }
+
+  message Ranges {
+    repeated Range range = 1;
+  }
+
+  message Set {
+    repeated string item = 1;
+  }
+
+  message Text {
+    optional string value = 1;
+  }
+
+  optional Type type = 1;
+  optional Scalar scalar = 2;
+  optional Ranges ranges = 3;
+  optional Set set = 4;
+  optional Text text = 5;
+}
+
+//go:generate protoc --proto_path=${GOPATH}/src:${GOPATH}/src/github.com/gogo/protobuf/protobuf:. --gogo_out=. *.proto
+
+/**
+ * Describes a health check for a task or executor (or any arbitrary
+ * process/command). A "strategy" is picked by specifying one of the
+ * optional fields, currently only 'http' is supported. Specifying
+ * more than one strategy is an error.
+ */
+message HealthCheck {
+  optional MessageType message_type = 1;
+  // Describes an HTTP health check.
+  message HTTP {
+    // Port to send the HTTP request.
+    optional uint32 port = 1;
+
+    // HTTP request path.
+    optional string path = 2 [default = "/"];
+
+    // TODO(benh): Implement:
+    // Whether or not to use HTTPS.
+    // optional bool ssl = 3 [default = false];
+
+    // Expected response statuses. Not specifying any statuses implies
+    // that any returned status is acceptable.
+    repeated uint32 statuses = 4;
+
+    // TODO(benh): Include an 'optional bytes data' field for checking
+    // for specific data in the response.
+  }
+
+  repeated HTTP http = 2;
+
+  // TODO(benh): Consider adding a URL health check strategy which
+  // allows doing something similar to the HTTP strategy but
+  // encapsulates all the details in a single string field.
+
+  // TODO(benh): Other possible health check strategies could include
+  // one for TCP/UDP or a "command". A "command" could be running a
+  // (shell) command to check the healthiness. We'd need to determine
+  // what arguments (or environment variables) we'd want to set so
+  // that the command could do it's job (i.e., do we want to expose
+  // the stdout/stderr and/or the pid to make checking for healthiness
+  // easier).
+
+  // Amount of time to wait until starting the health checks.
+  optional double delay_seconds = 3 [default = 15.0];
+
+  // Interval between health checks.
+  optional double interval_seconds = 4 [default = 10.0];
+
+  // Amount of time to wait for the health check to complete.
+  optional double timeout_seconds = 5 [default = 20.0];
+
+  // Number of consecutive failures until considered unhealthy.
+  optional uint32 failures = 6 [default = 3];
+
+  // Amount of time to allow failed health checks since launch.
+  optional double grace_period_seconds = 7 [default = 10.0];
+
+  // Command health check.
+  optional CommandInfo command = 8;
+}
+
+/**
+ * Describes a command, executed via: '/bin/sh -c value'. Any URIs specified
+ * are fetched before executing the command.  If the executable field for an
+ * uri is set, executable file permission is set on the downloaded file.
+ * Otherwise, if the downloaded file has a recognized archive extension
+ * (currently [compressed] tar and zip) it is extracted into the executor's
+ * working directory. This extraction can be disabled by setting `extract` to
+ * false. In addition, any environment variables are set before executing
+ * the command (so they can be used to "parameterize" your command).
+ */
+message CommandInfo {
+  optional MessageType message_type = 1;
+  message URI {
+    optional string value = 1;
+    optional bool executable = 2;
+    optional bool extract = 3 [default = true];
+  }  
+
+  repeated URI uris = 2;
+
+  optional Environment environment = 3;
+
+  // There are two ways to specify the command:
+  // 1) If 'shell == true', the command will be launched via shell
+  //		(i.e., /bin/sh -c 'value'). The 'value' specified will be
+  //		treated as the shell command. The 'arguments' will be ignored.
+  // 2) If 'shell == false', the command will be launched by passing
+  //		arguments to an executable. The 'value' specified will be
+  //		treated as the filename of the executable. The 'arguments'
+  //		will be treated as the arguments to the executable. This is
+  //		similar to how POSIX exec families launch processes (i.e.,
+  //		execlp(value, arguments(0), arguments(1), ...)).
+  // NOTE: The field 'value' is changed from 'required' to 'optional'
+  // in 0.20.0. It will only cause issues if a new framework is
+  // connecting to an old master.
+  optional bool shell = 4 [default = true];
+  optional string value = 5;
+  repeated string arguments = 6;
+
+  // Shutdown grace period for the command (in seconds). Any changes
+  // made by frameworks are currently ignored.
+  optional double grace_period_seconds = 7;
+
+  // Enables executor and tasks to run as a specific user. If the user
+  // field is present both in FrameworkInfo and here, the CommandInfo
+  // user value takes precedence.
+  optional string user = 8;
+}
+
+
+/**
+ * Describes a resource on a machine. A resource can take on one of
+ * three types: scalar (double), a list of finite and discrete ranges
+ * (e.g., [1-10, 20-30]), or a set of items. A resource is described
+ * using the standard protocol buffer "union" trick.
+ *
+ * TODO(benh): Add better support for "expected" resources (e.g.,
+ * cpus, memory, disk, network).
+ */
+message Volume {
+  optional MessageType message_type = 1;
+  optional string name = 2;
+  optional Value.Type type = 3;
+  optional Value.Scalar scalar = 4;
+  optional Value.Ranges ranges = 5;
+  optional Value.Set set = 6;
+  optional string role = 7 [default = "*"];
+
+  message DiskInfo {
+    // Describes a persistent disk volume.
+    // A persistent disk volume will not be automatically garbage
+    // collected if the task/executor/slave terminates, but is
+    // re-offered to the framework(s) belonging to the 'role'.
+    // A framework can set the ID (if it is not set yet) to express
+    // the intention to create a new persistent disk volume from a
+    // regular disk resource. To reuse a previously created volume, a
+    // framework can launch a task/executor when it receives an offer
+    // with a persistent volume, i.e., ID is set.
+    // NOTE: Currently, we do not allow a persistent disk volume
+    // without a reservation (i.e., 'role' should not be '*').
+    message Persistence {
+      // A unique ID for the persistent disk volume.
+      // NOTE: The ID needs to be unique per role on each slave.
+      required string id = 1;
+    }
+
+    optional Persistence persistence = 1;
+
+    // Describes how this disk resource will be mounted in the
+    // container. If not set, the disk resource will be used as the
+    // sandbox. Otherwise, it will be mounted according to the
+    // 'container_path' inside 'volume'. The 'host_path' inside
+    // 'volume' is ignored.
+    // NOTE: If 'volume' is set but 'persistence' is not set, the
+    // volume will be automatically garbage collected after
+    // task/executor terminates. Currently, if 'persistence' is set,
+    // 'volume' must be set.
+    optional Volume volume = 2;
+  }
+
+  optional DiskInfo disk = 8;
+}
+
+
+/**
+ * Describes a container configuration and allows extensible
+ * configurations for different container implementations.
+ */
+message ContainerInfo {
+  optional MessageType message_type = 1;
+  // All container implementation types.
+  enum Type {
+    DOCKER = 1;    
+    LXC = 2;
+    ROCKET = 3;    
+  }  
+
+  // Network options.
+  enum Network {
+    HOST = 1;
+    BRIDGE = 2;
+    NONE = 3;
+    VLAN = 4;
+    GRE = 5;
+  }
+
+  // Container Image Name
+  optional string image = 2;
+
+  optional Network network = 3 [default = BRIDGE];
+
+  message PortMapping {
+      required uint32 host_port = 1;
+      required uint32 container_port = 2;
+      // Protocol to expose as (ie: tcp, udp).
+      optional string protocol = 3;
+    }
+
+  repeated PortMapping port_mappings = 4;
+
+  optional bool privileged = 5 [default = false];
+
+  // Allowing arbitrary parameters to be passed to docker CLI.
+  // Note that anything passed to this field is not guaranteed
+  // to be supported moving forward, as we might move away from
+  // the docker CLI.
+  repeated Parameter parameters = 6;
+
+  // With this flag set to true, the docker containerizer will
+  // pull the docker image from the registry even if the image
+  // is already downloaded on the slave.
+  optional bool force_pull_image = 7;
+  
+
+  optional Type type = 8 [default = DOCKER];
+  repeated Volume volumes = 9;
+  optional string hostname = 10;
+  repeated Environment environments = 11;
+
+  // user name space ?
+  // probably we need to define a user message
+  optional User user = 12;
+  
+}
+
+/**
+ * User message
+ */
+message User {
+    optional string name = 1;
+    optional int32 uid = 2;
+    optional int32 gid  = 3;
+}
+
+/**
+ * A generic (key, value) pair used in various places for parameters.
+ */
+message Parameter {
+  required string key = 1;
+  required string value = 2;
+}
+
+
+/**
+ * Collection of Parameter.
+ */
+message Parameters {
+  repeated Parameter parameter = 1;
+}
+
+
+/**
+ * Collection of labels.
+ */
+message Labels {
+    repeated Label labels = 1;
+}
+
+
+/**
+ * Key, value pair used to store free form user-data.
+ */
+message Label {
+  required string key = 1;
+  optional string value = 2;
+}
+
+
+/**
+ * Named port used for service discovery.
+ */
+message Port {
+  required uint32 number = 1;
+  optional string name = 2;
+  optional string protocol = 3;
+}
+
+
+/**
+ * Collection of ports.
+ */
+message Ports {
+    repeated Port ports = 1;
+}
+
+
+/**
+* Service discovery information.
+* The visibility field restricts discovery within a framework
+* (FRAMEWORK), within a Mesos cluster (CLUSTER), or  places no
+* restrictions (EXTERNAL).
+* The environment, location, and version fields provide first class
+* support for common attributes used to differentiate between
+* similar services. The environment may receive values such as
+* PROD/QA/DEV, the location field may receive values like
+* EAST-US/WEST-US/EUROPE/AMEA, and the version field may receive
+* values like v2.0/v0.9. The exact use of these fields is up to each
+* service discovery system.
+*/
+message DiscoveryInfo {
+
+  enum Visibility {
+    FRAMEWORK = 0;
+    CLUSTER = 1;
+    EXTERNAL = 2;
+  }
+
+  optional Visibility visibility = 1;
+  optional string name = 2;
+  optional string environment = 3;
+  optional string location = 4;
+  optional string version = 5;
+  optional Ports ports = 6;
+  optional Labels labels = 7;
+}
+
+

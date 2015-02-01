@@ -1,0 +1,50 @@
+package proto;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.gostring_all) = true;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) =  true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+
+// Basic messages type so that we can match them easily on both side of the channel
+enum MessageType {
+	// basic messages to handle the communication betweeb master and slaves
+
+	// Send an heartbit from the slave to the master
+	// if an heartbit is not received for N seconds, then we consider the slave gone
+	HEARTBIT = 0;
+
+	// Allow the master to acknowledge the slave
+	ACK_HEARTBIT = 1;
+
+	// The slave ask to be added to the pool
+	SLAVE_SUBSCRIBE_REQUEST = 2;
+
+	// Acknowledge that the slave was added
+	ACK_SLAVE_SUBSCRIBE_REQUEST = 3;
+
+	// the slave offers resources to the master
+	RESOURCE_OFFER = 4;
+
+	// the slave sends updates abut the resource usage to update the master stats ()
+	RESOURCE_USAGE = 5;
+
+	// this is the request sent from the master to start a task on a slave
+	TASK_REQUEST = 6;
+
+	// this is the status of the TASK send from the slaves to the master
+	// this is sent everytime a task changes its status on the slaves
+	TASK_STATUS = 7;
+
+	// this gives information about the slave (hostname for ex)
+	SLAVE_INFO = 8;
+}

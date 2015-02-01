@@ -24,7 +24,7 @@ MODULES:
 - TASKS
   + Docker
   + LXC
-  + XEN
+  + XEN (High availability will be problematic because of the VM size)
   + Long tasks, short tasks (pure shell commands)
 
 - REPORTING
