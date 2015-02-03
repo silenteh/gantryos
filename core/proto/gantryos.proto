@@ -1,7 +1,6 @@
 package proto;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "envelope.proto";
 
 option (gogoproto.gostring_all) = true;
 option (gogoproto.equal_all) = true;
@@ -38,7 +37,7 @@ message MasterInfo {
  */
 message SlaveInfo {    
   optional string id = 1;
-  optional uint32 ip = 2;
+  optional string ip = 2;
   optional uint32 port = 3 [default = 6051];
   optional string hostname = 4;
   repeated Resource resources = 5;

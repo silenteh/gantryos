@@ -51,7 +51,7 @@ enum MessageType {
 	SLAVE_INFO = 8;
 }
 
-message Envepope {
+message Envelope {
 	
 	optional ResourceOffer resource_offer = 1;
 	optional TaskInfo task_info = 2;

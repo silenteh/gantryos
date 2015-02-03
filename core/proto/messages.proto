@@ -16,13 +16,7 @@ option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 
 
-// TODO(benh): Provide comments for each of these messages. Also,
-// consider splitting these messages into different "packages" which
-// represent which messages get handled by which components (e.g., the
-// "mesos.internal.executor" package includes messages that the
-// executor handles).
-
-
+// This message sends the status update of a task running on a specific slave
 message SlaveTaskStatusUpdate {  
   optional SlaveInfo slave = 1;
   required TaskStatus status = 2;
@@ -40,7 +34,7 @@ message StatusUpdateRecord {
     ACK = 1;
   }  
   required Type type = 1;
-  optional StatusUpdate update = 2;
+  optional SlaveTaskStatusUpdate update = 2;
   optional bytes uuid = 3;
 }
 
@@ -83,7 +77,7 @@ message KillTaskMessage {
 // NOTE: If 'pid' is present, scheduler driver sends an
 // acknowledgement to the pid.
 message StatusUpdateMessage {  
-  optional StatusUpdate update = 1;
+  optional SlaveTaskStatusUpdate update = 1;
   optional string pid = 2;
 }
 
@@ -126,9 +120,8 @@ message SlaveRegisteredMessage {
 }
 
 
-message SlaveReregisteredMessage {
-  optional MessageType message_type = 1;
-  required SlaveInfo slave = 2;
+message SlaveReregisteredMessage {  
+  required SlaveInfo slave = 1;
 }
 
 

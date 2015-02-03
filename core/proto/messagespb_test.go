@@ -34,14 +34,14 @@ import time13 "time"
 import testing13 "testing"
 import github_com_gogo_protobuf_proto7 "github.com/gogo/protobuf/proto"
 
-func TestStatusUpdateProto(t *testing7.T) {
+func TestSlaveTaskStatusUpdateProto(t *testing7.T) {
 	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, false)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	data, err := github_com_gogo_protobuf_proto4.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	if err := github_com_gogo_protobuf_proto4.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
@@ -56,9 +56,9 @@ func TestStatusUpdateProto(t *testing7.T) {
 	}
 }
 
-func TestStatusUpdateMarshalTo(t *testing7.T) {
+func TestSlaveTaskStatusUpdateMarshalTo(t *testing7.T) {
 	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, false)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	size := p.Size()
 	data := make([]byte, size)
 	for i := range data {
@@ -68,7 +68,7 @@ func TestStatusUpdateMarshalTo(t *testing7.T) {
 	if err != nil {
 		panic(err)
 	}
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	if err := github_com_gogo_protobuf_proto4.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
@@ -83,12 +83,12 @@ func TestStatusUpdateMarshalTo(t *testing7.T) {
 	}
 }
 
-func BenchmarkStatusUpdateProtoMarshal(b *testing7.B) {
+func BenchmarkSlaveTaskStatusUpdateProtoMarshal(b *testing7.B) {
 	popr := math_rand7.New(math_rand7.NewSource(616))
 	total := 0
-	pops := make([]*StatusUpdate, 10000)
+	pops := make([]*SlaveTaskStatusUpdate, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedStatusUpdate(popr, false)
+		pops[i] = NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -101,18 +101,18 @@ func BenchmarkStatusUpdateProtoMarshal(b *testing7.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkStatusUpdateProtoUnmarshal(b *testing7.B) {
+func BenchmarkSlaveTaskStatusUpdateProtoUnmarshal(b *testing7.B) {
 	popr := math_rand7.New(math_rand7.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		data, err := github_com_gogo_protobuf_proto4.Marshal(NewPopulatedStatusUpdate(popr, false))
+		data, err := github_com_gogo_protobuf_proto4.Marshal(NewPopulatedSlaveTaskStatusUpdate(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = data
 	}
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1636,14 +1636,14 @@ func BenchmarkHeartbeatMessageProtoUnmarshal(b *testing7.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestStatusUpdateJSON(t *testing8.T) {
+func TestSlaveTaskStatusUpdateJSON(t *testing8.T) {
 	popr := math_rand8.New(math_rand8.NewSource(time8.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, true)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, true)
 	jsondata, err := encoding_json1.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	err = encoding_json1.Unmarshal(jsondata, msg)
 	if err != nil {
 		panic(err)
@@ -1978,11 +1978,11 @@ func TestHeartbeatMessageJSON(t *testing8.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestStatusUpdateProtoText(t *testing9.T) {
+func TestSlaveTaskStatusUpdateProtoText(t *testing9.T) {
 	popr := math_rand9.New(math_rand9.NewSource(time9.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, true)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, true)
 	data := github_com_gogo_protobuf_proto5.MarshalTextString(p)
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	if err := github_com_gogo_protobuf_proto5.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
@@ -1994,11 +1994,11 @@ func TestStatusUpdateProtoText(t *testing9.T) {
 	}
 }
 
-func TestStatusUpdateProtoCompactText(t *testing9.T) {
+func TestSlaveTaskStatusUpdateProtoCompactText(t *testing9.T) {
 	popr := math_rand9.New(math_rand9.NewSource(time9.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, true)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, true)
 	data := github_com_gogo_protobuf_proto5.CompactTextString(p)
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	if err := github_com_gogo_protobuf_proto5.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
@@ -2554,9 +2554,9 @@ func TestHeartbeatMessageProtoCompactText(t *testing9.T) {
 	}
 }
 
-func TestStatusUpdateStringer(t *testing10.T) {
+func TestSlaveTaskStatusUpdateStringer(t *testing10.T) {
 	popr := math_rand10.New(math_rand10.NewSource(time10.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, false)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	s1 := p.String()
 	s2 := fmt2.Sprintf("%v", p)
 	if s1 != s2 {
@@ -2716,9 +2716,9 @@ func TestHeartbeatMessageStringer(t *testing10.T) {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestStatusUpdateSize(t *testing11.T) {
+func TestSlaveTaskStatusUpdateSize(t *testing11.T) {
 	popr := math_rand11.New(math_rand11.NewSource(time11.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, true)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, true)
 	size2 := github_com_gogo_protobuf_proto6.Size(p)
 	data, err := github_com_gogo_protobuf_proto6.Marshal(p)
 	if err != nil {
@@ -2737,12 +2737,12 @@ func TestStatusUpdateSize(t *testing11.T) {
 	}
 }
 
-func BenchmarkStatusUpdateSize(b *testing11.B) {
+func BenchmarkSlaveTaskStatusUpdateSize(b *testing11.B) {
 	popr := math_rand11.New(math_rand11.NewSource(616))
 	total := 0
-	pops := make([]*StatusUpdate, 1000)
+	pops := make([]*SlaveTaskStatusUpdate, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedStatusUpdate(popr, false)
+		pops[i] = NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3346,9 +3346,9 @@ func BenchmarkHeartbeatMessageSize(b *testing11.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestStatusUpdateGoString(t *testing12.T) {
+func TestSlaveTaskStatusUpdateGoString(t *testing12.T) {
 	popr := math_rand12.New(math_rand12.NewSource(time12.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, false)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	s1 := p.GoString()
 	s2 := fmt3.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3580,14 +3580,14 @@ func TestHeartbeatMessageGoString(t *testing12.T) {
 		panic(err)
 	}
 }
-func TestStatusUpdateVerboseEqual(t *testing13.T) {
+func TestSlaveTaskStatusUpdateVerboseEqual(t *testing13.T) {
 	popr := math_rand13.New(math_rand13.NewSource(time13.Now().UnixNano()))
-	p := NewPopulatedStatusUpdate(popr, false)
+	p := NewPopulatedSlaveTaskStatusUpdate(popr, false)
 	data, err := github_com_gogo_protobuf_proto7.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &StatusUpdate{}
+	msg := &SlaveTaskStatusUpdate{}
 	if err := github_com_gogo_protobuf_proto7.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
