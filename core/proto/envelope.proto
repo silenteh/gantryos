@@ -1,6 +1,8 @@
 package proto;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "gantryos.proto";
+import "messages.proto";
 
 option (gogoproto.gostring_all) = true;
 option (gogoproto.equal_all) = true;
@@ -47,4 +49,27 @@ enum MessageType {
 
 	// this gives information about the slave (hostname for ex)
 	SLAVE_INFO = 8;
+}
+
+message Envepope {
+	
+	optional ResourceOffer resource_offer = 1;
+	optional TaskInfo task_info = 2;
+	optional TaskStatus task_status = 3;	
+	optional MasterInfo master_info = 4;
+	optional SlaveInfo slave_info = 5;	
+	optional Request request = 6;
+
+	// Tasks
+	optional LaunchTasksMessage launch_task = 7;
+	optional KillTaskMessage kill_task = 8;
+
+	// messages 
+	optional RegisterSlaveMessage register_slave = 9;
+	optional ReregisterSlaveMessage re_register_slave = 10;
+	optional SlaveRegisteredMessage slave_re_registered = 11;
+	optional UnregisterSlaveMessage unregister_slave = 12;
+	optional HeartbeatMessage heartbeat = 13;
+	optional ReconcileTasksMessage reconcile_tasks = 14;
+	optional LostSlaveMessage lost_slave = 15;
 }

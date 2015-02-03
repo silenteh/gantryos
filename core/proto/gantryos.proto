@@ -20,13 +20,12 @@ option (gogoproto.unmarshaler_all) = true;
  * Describes a master. This will probably have more fields in the
  * future which might be used 
  */
-message MasterInfo {
-  optional MessageType message_type = 1;
-  optional string id = 2;
-  optional uint32 ip = 3;
-  optional uint32 port = 4 [default = 6050];
-  optional string pid = 5;
-  optional string hostname = 6;
+message MasterInfo {  
+  optional string id = 1;
+  optional uint32 ip = 2;
+  optional uint32 port = 3 [default = 6050];
+  optional string pid = 4;
+  optional string hostname = 5;
 }
 
 
@@ -37,13 +36,13 @@ message MasterInfo {
  * checkpointing its own information and potentially frameworks'
  * information (if a framework has checkpointing enabled).
  */
-message SlaveInfo {
-  optional MessageType message_type = 1;
-  optional string hostname = 2;
-  repeated Resource resources = 3;  
-  optional string slave_id = 4;
-  optional bool checkpoint = 5 [default = false];
-  optional int32 port = 6 [default = 6051];
+message SlaveInfo {    
+  optional string id = 1;
+  optional uint32 ip = 2;
+  optional uint32 port = 3 [default = 6051];
+  optional string hostname = 4;
+  repeated Resource resources = 5;
+  optional bool checkpoint = 6 [default = false];  
 }
 
 
@@ -51,11 +50,10 @@ message SlaveInfo {
  * Describes some resources available on a slave. An offer only
  * contains resources from a single slave.
  */
-message ResourceOffer {
-  optional MessageType message_type = 1;
-  optional string offer_id = 2;  
-  optional SlaveInfo slave = 3;  
-  repeated Resource resources = 4;
+message ResourceOffer {  
+  optional string offer_id = 1;  
+  optional SlaveInfo slave = 2;  
+  repeated Resource resources = 3;
 }
 
 /**
@@ -64,48 +62,46 @@ message ResourceOffer {
  * then this request is assumed to only apply to resources on that
  * slave.
  */
-message Request {
-  optional MessageType message_type = 1;
-  optional SlaveInfo slave = 2;
-  repeated Resource resources = 3;
+message Request {  
+  optional SlaveInfo slave = 1;
+  repeated Resource resources = 2;
 }
 
 
 /**
  * Describes a task to be started in one of the slaves  
  */
-message TaskInfo {
-  optional MessageType message_type = 1;
-  optional string taskName = 2;
-  optional string taskVersion = 3;
-  optional string task_id = 4;
-  optional SlaveInfo slave = 5;
-  optional Resource resources = 6;  
-  optional CommandInfo command = 7;
+message TaskInfo {  
+  optional string taskName = 1;
+  optional string taskVersion = 2;
+  optional string task_id = 3;
+  optional SlaveInfo slave = 4;
+  optional Resource resources = 5;
+  optional CommandInfo command = 6;
   // Task provided with a container will launch the container as part
   // of this task paired with the task's CommandInfo.
-  optional ContainerInfo container = 8;  
+  optional ContainerInfo container = 7;
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
-  repeated HealthCheck health_check = 9;
+  repeated HealthCheck health_check = 8;
 
   // Labels are free-form key value pairs which are exposed through
   // master and slave endpoints. Labels will not be interpreted or
   // acted upon by Mesos itself. As opposed to the data field, labels
   // will be kept in memory on master and slave processes. Therefore,
   // labels should be used to tag tasks with light-weight meta-data.
-  optional Labels labels = 10;
+  optional Labels labels = 9;
 
   // Service discovery information for the task. It is not interpreted
   // or acted upon by Mesos. It is up to a service discovery system
   // to use this information as needed and to handle tasks without
   // service discovery information.
-  optional DiscoveryInfo discovery = 11;
+  optional DiscoveryInfo discovery = 10;
   
   // Not yet
   // we will enable it only if needed.
   // Usually Labels are enough.
-  //optional bytes data = 12;
+  //optional bytes data = 11;
 }
 
 
@@ -147,19 +143,18 @@ enum ResourceType {
 /**
  * Describes the current status of a task.
  */
-message TaskStatus {
-  optional MessageType message_type = 1;
-  optional string task_id = 2;
-  optional TaskState state = 3;
-  optional string message = 4; // Possible message explaining state.
-  optional bytes data = 5;
-  optional SlaveInfo slave = 6;  
-  optional double timestamp = 7;
+message TaskStatus {  
+  optional string task_id = 1;
+  optional TaskState state = 2;
+  optional string message = 3; // Possible message explaining state.
+  optional bytes data = 4;
+  optional SlaveInfo slave = 5;
+  optional double timestamp = 6;
 
   // Describes whether the task has been determined to be healthy
   // (true) or unhealthy (false) according to the HealthCheck field in
   // the command info.
-  optional bool healthy = 8;
+  optional bool healthy = 7;
 }
 
 
@@ -173,12 +168,11 @@ message Filters {
   // (below) regardless of whether Filters was passed to
   // SchedulerDriver::launchTasks. You MUST pass Filters with this
   // field set to change this behavior (i.e., get another offer which
-  // includes unused resources sooner or later than the default).
-  optional MessageType message_type = 1;
-  optional double refuse_seconds = 2 [default = 5.0];
+  // includes unused resources sooner or later than the default).  
+  optional double refuse_seconds = 1 [default = 5.0];
 
   // rebalance is used to distribute an app equally over all the slaves
-  optional bool rebalance = 3 [default = true];
+  optional bool rebalance = 2 [default = true];
 }
 
 
@@ -205,14 +199,13 @@ message Environment {
  * TODO(benh): Add better support for "expected" resources (e.g.,
  * cpus, memory, disk, network).
  */
-message Resource {
-  optional MessageType message_type = 1;
-  optional ResourceType resource_type = 2;
-  optional Value.Type type = 3;
-  optional Value.Scalar scalar = 4;
-  optional Value.Ranges ranges = 5;
-  optional Value.Set set = 6;
-  optional string role = 7 [default = "*"];
+message Resource {  
+  optional ResourceType resource_type = 1;
+  optional Value.Type type = 2;
+  optional Value.Scalar scalar = 3;
+  optional Value.Ranges ranges = 4;
+  optional Value.Set set = 5;
+  optional string role = 6 [default = "*"];
 }
 
 /**
@@ -261,8 +254,7 @@ message Value {
  * optional fields, currently only 'http' is supported. Specifying
  * more than one strategy is an error.
  */
-message HealthCheck {
-  optional MessageType message_type = 1;
+message HealthCheck {  
   // Describes an HTTP health check.
   message HTTP {
     // Port to send the HTTP request.
@@ -283,7 +275,7 @@ message HealthCheck {
     // for specific data in the response.
   }
 
-  repeated HTTP http = 2;
+  repeated HTTP http = 1;
 
   // TODO(benh): Consider adding a URL health check strategy which
   // allows doing something similar to the HTTP strategy but
@@ -298,22 +290,22 @@ message HealthCheck {
   // easier).
 
   // Amount of time to wait until starting the health checks.
-  optional double delay_seconds = 3 [default = 15.0];
+  optional double delay_seconds = 2 [default = 15.0];
 
   // Interval between health checks.
-  optional double interval_seconds = 4 [default = 10.0];
+  optional double interval_seconds = 3 [default = 10.0];
 
   // Amount of time to wait for the health check to complete.
-  optional double timeout_seconds = 5 [default = 20.0];
+  optional double timeout_seconds = 4 [default = 20.0];
 
   // Number of consecutive failures until considered unhealthy.
-  optional uint32 failures = 6 [default = 3];
+  optional uint32 failures = 5 [default = 3];
 
   // Amount of time to allow failed health checks since launch.
-  optional double grace_period_seconds = 7 [default = 10.0];
+  optional double grace_period_seconds = 6 [default = 10.0];
 
   // Command health check.
-  optional CommandInfo command = 8;
+  optional CommandInfo command = 7;
 }
 
 /**
@@ -326,17 +318,16 @@ message HealthCheck {
  * false. In addition, any environment variables are set before executing
  * the command (so they can be used to "parameterize" your command).
  */
-message CommandInfo {
-  optional MessageType message_type = 1;
+message CommandInfo {  
   message URI {
     optional string value = 1;
     optional bool executable = 2;
     optional bool extract = 3 [default = true];
   }  
 
-  repeated URI uris = 2;
+  repeated URI uris = 1;
 
-  optional Environment environment = 3;
+  optional Environment environment = 2;
 
   // There are two ways to specify the command:
   // 1) If 'shell == true', the command will be launched via shell
@@ -351,18 +342,18 @@ message CommandInfo {
   // NOTE: The field 'value' is changed from 'required' to 'optional'
   // in 0.20.0. It will only cause issues if a new framework is
   // connecting to an old master.
-  optional bool shell = 4 [default = true];
-  optional string value = 5;
-  repeated string arguments = 6;
+  optional bool shell = 3 [default = true];
+  optional string value = 4;
+  repeated string arguments = 5;
 
   // Shutdown grace period for the command (in seconds). Any changes
   // made by frameworks are currently ignored.
-  optional double grace_period_seconds = 7;
+  optional double grace_period_seconds = 6;
 
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
-  optional string user = 8;
+  optional string user = 7;
 }
 
 
@@ -375,14 +366,13 @@ message CommandInfo {
  * TODO(benh): Add better support for "expected" resources (e.g.,
  * cpus, memory, disk, network).
  */
-message Volume {
-  optional MessageType message_type = 1;
-  optional string name = 2;
-  optional Value.Type type = 3;
-  optional Value.Scalar scalar = 4;
-  optional Value.Ranges ranges = 5;
-  optional Value.Set set = 6;
-  optional string role = 7 [default = "*"];
+message Volume {  
+  optional string name = 1;
+  optional Value.Type type = 2;
+  optional Value.Scalar scalar = 3;
+  optional Value.Ranges ranges = 4;
+  optional Value.Set set = 5;
+  optional string role = 6 [default = "*"];
 
   message DiskInfo {
     // Describes a persistent disk volume.
@@ -416,7 +406,7 @@ message Volume {
     optional Volume volume = 2;
   }
 
-  optional DiskInfo disk = 8;
+  optional DiskInfo disk = 7;
 }
 
 

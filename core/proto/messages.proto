@@ -1,7 +1,6 @@
 package proto;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "envelope.proto";
 import "gantryos.proto";
 
 option (gogoproto.gostring_all) = true;
@@ -24,12 +23,11 @@ option (gogoproto.unmarshaler_all) = true;
 // executor handles).
 
 
-message StatusUpdate {
-  optional MessageType message_type = 1;
-  optional SlaveInfo slave = 2;
-  required TaskStatus status = 3;
-  required double timestamp = 4;
-  required bytes uuid = 5;
+message SlaveTaskStatusUpdate {  
+  optional SlaveInfo slave = 1;
+  required TaskStatus status = 2;
+  required double timestamp = 3;
+  required bytes uuid = 4;
 }
 
 
@@ -40,75 +38,65 @@ message StatusUpdateRecord {
   enum Type {
     UPDATE = 0;
     ACK = 1;
-  }
-  optional MessageType message_type = 1;
-  required Type type = 2;
-  optional StatusUpdate update = 3;
-  optional bytes uuid = 4;
+  }  
+  required Type type = 1;
+  optional StatusUpdate update = 2;
+  optional bytes uuid = 3;
 }
 
-message ResourceRequestMessage {
-  optional MessageType message_type = 1;
-  repeated Request requests = 2;
-}
-
-
-message ResourceOffersMessage {
-  optional MessageType message_type = 1;
-  repeated ResourceOffer offers = 2;
-  repeated string pids = 3;
+message ResourceRequestMessage {  
+  repeated Request requests = 1;
 }
 
 
-message LaunchTasksMessage {
-  optional MessageType message_type = 1;
-  repeated TaskInfo tasks = 3;
-  optional Filters filters = 5;
-  repeated string offer_ids = 6;
+message ResourceOffersMessage {  
+  repeated ResourceOffer offers = 1;
+  repeated string pids = 2;
 }
 
 
-message RescindResourceOfferMessage {
-  optional MessageType message_type = 1;
-  optional string offer_id = 2;
+message LaunchTasksMessage {  
+  repeated TaskInfo tasks = 1;
+  optional Filters filters = 2;
+  repeated string offer_ids = 3;
 }
 
-message RunTaskMessage { 
-  optional MessageType message_type = 1; 
-  optional string pid = 2;
-  optional TaskInfo task = 3;
+
+message RescindResourceOfferMessage {  
+  optional string offer_id = 1;
+}
+
+message RunTaskMessage {   
+  optional string pid = 1;
+  optional TaskInfo task = 2;
 }
 
 
 message KillTaskMessage {
   // TODO(bmahler): Include the SlaveID here to improve the Master's
-  // ability to respond for non-activated slaves.
-  optional MessageType message_type = 1;
-  optional SlaveInfo slave = 2;
-  optional string task_id = 3;
+  // ability to respond for non-activated slaves.  
+  optional SlaveInfo slave = 1;
+  optional string task_id = 2;
 }
 
 
 // NOTE: If 'pid' is present, scheduler driver sends an
 // acknowledgement to the pid.
-message StatusUpdateMessage {
-  optional MessageType message_type = 1;
-  optional StatusUpdate update = 2;
-  optional string pid = 3;
+message StatusUpdateMessage {  
+  optional StatusUpdate update = 1;
+  optional string pid = 2;
 }
 
 
-message StatusUpdateAcknowledgementMessage {
-  optional MessageType message_type = 1;
-  required SlaveInfo slave = 2;  
-  required string task_id = 3;
-  required bytes uuid = 4;
+message StatusUpdateAcknowledgementMessage {  
+  required SlaveInfo slave = 1;
+  required string task_id = 2;
+  required bytes uuid = 3;
 }
 
 
-message LostSlaveMessage {
-  optional MessageType message_type = 1;
-  required string slave_id = 2;
+message LostSlaveMessage {  
+  required string slave_id = 1;
 }
 
 
@@ -118,27 +106,23 @@ message LostSlaveMessage {
 // known will result in a TASK_LOST update. If statuses is empty,
 // then the master will send the latest status for each task
 // currently known.
-message ReconcileTasksMessage {  
-  optional MessageType message_type = 1;
-  repeated TaskStatus statuses = 2; // Should be non-terminal only.
+message ReconcileTasksMessage {    
+  repeated TaskStatus statuses = 1; // Should be non-terminal only.
 }
 
-message RegisterSlaveMessage {
-  optional MessageType message_type = 1;
-  optional SlaveInfo slave = 2;
+message RegisterSlaveMessage {  
+  optional SlaveInfo slave = 1;
 }
 
 
-message ReregisterSlaveMessage {    
-  optional MessageType message_type = 1;
-  optional SlaveInfo slave = 2;  
-  repeated TaskInfo tasks = 3;  
+message ReregisterSlaveMessage {      
+  optional SlaveInfo slave = 1;  
+  repeated TaskInfo tasks = 2;  
 }
 
 
 message SlaveRegisteredMessage {
-  optional MessageType message_type = 1;
-  required SlaveInfo slave = 2;
+  required SlaveInfo slave = 1;
 }
 
 
@@ -149,12 +133,10 @@ message SlaveReregisteredMessage {
 
 
 message UnregisterSlaveMessage {
-  optional MessageType message_type = 1;
-  required SlaveInfo slave = 2;
+  required SlaveInfo slave = 1;
 }
 
 
-message HeartbeatMessage {
-  optional MessageType message_type = 1;
-  required SlaveInfo slave = 2;
+message HeartbeatMessage {  
+  required SlaveInfo slave = 1;
 }

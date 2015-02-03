@@ -1,8 +1,10 @@
 package coms
 
 import (
+	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 
+	"bufio"
 	"net"
 	"os"
 )
@@ -33,6 +35,8 @@ func handleTCPRequest(conn net.Conn) {
 
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
+
+	protobuf.Unmarshal(reader, pb)
 
 	// Make a buffer to hold incoming data.
 	buf := make([]byte, 512)
