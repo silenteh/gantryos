@@ -10,7 +10,17 @@ import (
 // this is the module responsible for setting up a communication channel (TCP or UDP)
 // where the data (protobuf, or JSON) can be exchanged
 
-func StartTCP(port int) {
+func StartTCP(port string) {
+
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Errorln("Failed to listen: %s", err)
+	}
+	for {
+		if conn, err := ln.Accept(); err == nil {
+			go handleTCPConnection(conn)
+		}
+	}
 
 }
 
@@ -19,7 +29,11 @@ func StartUDP(port int) {
 }
 
 // Handles incoming requests.
-func handleRequest(conn net.Conn) {
+func handleTCPRequest(conn net.Conn) {
+
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+
 	// Make a buffer to hold incoming data.
 	buf := make([]byte, 512)
 	// Read the incoming connection into the buffer.

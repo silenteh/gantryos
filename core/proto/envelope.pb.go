@@ -8,6 +8,7 @@ Package proto is a generated protocol buffer package.
 It is generated from these files:
 	envelope.proto
 	gantryos.proto
+	messages.proto
 
 It has these top-level messages:
 */

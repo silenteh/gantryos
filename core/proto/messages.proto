@@ -1,0 +1,160 @@
+package proto;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "envelope.proto";
+import "gantryos.proto";
+
+option (gogoproto.gostring_all) = true;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) =  true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+
+// TODO(benh): Provide comments for each of these messages. Also,
+// consider splitting these messages into different "packages" which
+// represent which messages get handled by which components (e.g., the
+// "mesos.internal.executor" package includes messages that the
+// executor handles).
+
+
+message StatusUpdate {
+  optional MessageType message_type = 1;
+  optional SlaveInfo slave = 2;
+  required TaskStatus status = 3;
+  required double timestamp = 4;
+  required bytes uuid = 5;
+}
+
+
+// This message encapsulates how we checkpoint a status update to disk.
+// NOTE: If type == UPDATE, the 'update' field is required.
+// NOTE: If type == ACK, the 'uuid' field is required.
+message StatusUpdateRecord {
+  enum Type {
+    UPDATE = 0;
+    ACK = 1;
+  }
+  optional MessageType message_type = 1;
+  required Type type = 2;
+  optional StatusUpdate update = 3;
+  optional bytes uuid = 4;
+}
+
+message ResourceRequestMessage {
+  optional MessageType message_type = 1;
+  repeated Request requests = 2;
+}
+
+
+message ResourceOffersMessage {
+  optional MessageType message_type = 1;
+  repeated ResourceOffer offers = 2;
+  repeated string pids = 3;
+}
+
+
+message LaunchTasksMessage {
+  optional MessageType message_type = 1;
+  repeated TaskInfo tasks = 3;
+  optional Filters filters = 5;
+  repeated string offer_ids = 6;
+}
+
+
+message RescindResourceOfferMessage {
+  optional MessageType message_type = 1;
+  optional string offer_id = 2;
+}
+
+message RunTaskMessage { 
+  optional MessageType message_type = 1; 
+  optional string pid = 2;
+  optional TaskInfo task = 3;
+}
+
+
+message KillTaskMessage {
+  // TODO(bmahler): Include the SlaveID here to improve the Master's
+  // ability to respond for non-activated slaves.
+  optional MessageType message_type = 1;
+  optional SlaveInfo slave = 2;
+  optional string task_id = 3;
+}
+
+
+// NOTE: If 'pid' is present, scheduler driver sends an
+// acknowledgement to the pid.
+message StatusUpdateMessage {
+  optional MessageType message_type = 1;
+  optional StatusUpdate update = 2;
+  optional string pid = 3;
+}
+
+
+message StatusUpdateAcknowledgementMessage {
+  optional MessageType message_type = 1;
+  required SlaveInfo slave = 2;  
+  required string task_id = 3;
+  required bytes uuid = 4;
+}
+
+
+message LostSlaveMessage {
+  optional MessageType message_type = 1;
+  required string slave_id = 2;
+}
+
+
+// Allows the framework to query the status for non-terminal tasks.
+// This causes the master to send back the latest task status for
+// each task in 'statuses', if possible. Tasks that are no longer
+// known will result in a TASK_LOST update. If statuses is empty,
+// then the master will send the latest status for each task
+// currently known.
+message ReconcileTasksMessage {  
+  optional MessageType message_type = 1;
+  repeated TaskStatus statuses = 2; // Should be non-terminal only.
+}
+
+message RegisterSlaveMessage {
+  optional MessageType message_type = 1;
+  optional SlaveInfo slave = 2;
+}
+
+
+message ReregisterSlaveMessage {    
+  optional MessageType message_type = 1;
+  optional SlaveInfo slave = 2;  
+  repeated TaskInfo tasks = 3;  
+}
+
+
+message SlaveRegisteredMessage {
+  optional MessageType message_type = 1;
+  required SlaveInfo slave = 2;
+}
+
+
+message SlaveReregisteredMessage {
+  optional MessageType message_type = 1;
+  required SlaveInfo slave = 2;
+}
+
+
+message UnregisterSlaveMessage {
+  optional MessageType message_type = 1;
+  required SlaveInfo slave = 2;
+}
+
+
+message HeartbeatMessage {
+  optional MessageType message_type = 1;
+  required SlaveInfo slave = 2;
+}

@@ -18,14 +18,13 @@ option (gogoproto.unmarshaler_all) = true;
 
 /**
  * Describes a master. This will probably have more fields in the
- * future which might be used, for example, to link a framework webui
- * to a master webui.
+ * future which might be used 
  */
 message MasterInfo {
   optional MessageType message_type = 1;
   optional string id = 2;
   optional uint32 ip = 3;
-  optional uint32 port = 4 [default = 5050];
+  optional uint32 port = 4 [default = 6050];
   optional string pid = 5;
   optional string hostname = 6;
 }
@@ -44,8 +43,7 @@ message SlaveInfo {
   repeated Resource resources = 3;  
   optional string slave_id = 4;
   optional bool checkpoint = 5 [default = false];
-  optional int32 port = 6 [default = 5051];
-
+  optional int32 port = 6 [default = 6051];
 }
 
 
@@ -56,33 +54,40 @@ message SlaveInfo {
 message ResourceOffer {
   optional MessageType message_type = 1;
   optional string offer_id = 2;  
-  optional string slave_id = 3;
-  optional string hostname = 4;
-  repeated Resource resources = 5;    
+  optional SlaveInfo slave = 3;  
+  repeated Resource resources = 4;
+}
+
+/**
+ * Describes a request for resources that can be used by a framework
+ * to proactively influence the allocator.  If 'slave_id' is provided
+ * then this request is assumed to only apply to resources on that
+ * slave.
+ */
+message Request {
+  optional MessageType message_type = 1;
+  optional SlaveInfo slave = 2;
+  repeated Resource resources = 3;
 }
 
 
 /**
- * Describes a task. Passed from the scheduler all the way to an
- * executor (see SchedulerDriver::launchTasks and
- * Executor::launchTask). Either ExecutorInfo or CommandInfo should be set.
- * A different executor can be used to launch this task, and subsequent tasks
- * meant for the same executor can reuse the same ExecutorInfo struct.
+ * Describes a task to be started in one of the slaves  
  */
 message TaskInfo {
   optional MessageType message_type = 1;
-  optional string name = 2;
-  optional string task_id = 3;
-  optional SlaveInfo slave = 4;
-  optional Resource resources = 5;  
-  optional CommandInfo command = 6;
+  optional string taskName = 2;
+  optional string taskVersion = 3;
+  optional string task_id = 4;
+  optional SlaveInfo slave = 5;
+  optional Resource resources = 6;  
+  optional CommandInfo command = 7;
   // Task provided with a container will launch the container as part
   // of this task paired with the task's CommandInfo.
-  optional ContainerInfo container = 7;
-  optional bytes data = 8;
+  optional ContainerInfo container = 8;  
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
-  optional HealthCheck health_check = 9;
+  repeated HealthCheck health_check = 9;
 
   // Labels are free-form key value pairs which are exposed through
   // master and slave endpoints. Labels will not be interpreted or
@@ -96,6 +101,11 @@ message TaskInfo {
   // to use this information as needed and to handle tasks without
   // service discovery information.
   optional DiscoveryInfo discovery = 11;
+  
+  // Not yet
+  // we will enable it only if needed.
+  // Usually Labels are enough.
+  //optional bytes data = 12;
 }
 
 
@@ -177,14 +187,13 @@ message Filters {
 * CommandInfo in order to set environment variables before running a
 * command.
 */
-message Environment {
-  optional MessageType message_type = 1;
+message Environment {  
   message Variable {
     optional string name = 1;
     optional string value = 2;
   }
 
-  repeated Variable variables = 2;
+  repeated Variable variables = 1;
 }
 
 /**
@@ -245,8 +254,6 @@ message Value {
   optional Set set = 4;
   optional Text text = 5;
 }
-
-//go:generate protoc --proto_path=${GOPATH}/src:${GOPATH}/src/github.com/gogo/protobuf/protobuf:. --gogo_out=. *.proto
 
 /**
  * Describes a health check for a task or executor (or any arbitrary
@@ -417,8 +424,7 @@ message Volume {
  * Describes a container configuration and allows extensible
  * configurations for different container implementations.
  */
-message ContainerInfo {
-  optional MessageType message_type = 1;
+message ContainerInfo {  
   // All container implementation types.
   enum Type {
     DOCKER = 1;    
@@ -436,9 +442,9 @@ message ContainerInfo {
   }
 
   // Container Image Name
-  optional string image = 2;
+  optional string image = 1;
 
-  optional Network network = 3 [default = BRIDGE];
+  optional Network network = 2 [default = BRIDGE];
 
   message PortMapping {
       required uint32 host_port = 1;
@@ -447,30 +453,30 @@ message ContainerInfo {
       optional string protocol = 3;
     }
 
-  repeated PortMapping port_mappings = 4;
+  repeated PortMapping port_mappings = 3;
 
-  optional bool privileged = 5 [default = false];
+  optional bool privileged = 4 [default = false];
 
   // Allowing arbitrary parameters to be passed to docker CLI.
   // Note that anything passed to this field is not guaranteed
   // to be supported moving forward, as we might move away from
   // the docker CLI.
-  repeated Parameter parameters = 6;
+  repeated Parameter parameters = 5;
 
   // With this flag set to true, the docker containerizer will
   // pull the docker image from the registry even if the image
   // is already downloaded on the slave.
-  optional bool force_pull_image = 7;
+  optional bool force_pull_image = 6;
   
 
-  optional Type type = 8 [default = DOCKER];
-  repeated Volume volumes = 9;
-  optional string hostname = 10;
-  repeated Environment environments = 11;
+  optional Type type = 7 [default = DOCKER];
+  repeated Volume volumes = 8;
+  optional string hostname = 9;
+  repeated Environment environments = 10;
 
   // user name space ?
   // probably we need to define a user message
-  optional User user = 12;
+  optional User user = 11;
   
 }
 
