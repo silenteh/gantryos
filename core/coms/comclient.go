@@ -1,14 +1,13 @@
 package coms
 
 import (
-	//protobuf "github.com/gogo/protobuf/proto"
-	//log "github.com/golang/glog"
-	//"github.com/silenteh/gantryos/core/proto"
-
-	//"bufio"
 	"errors"
-	//"io/ioutil"
+	//"fmt"
+	protobuf "github.com/gogo/protobuf/proto"
+	"github.com/silenteh/gantryos/core/proto"
+	//"io"
 	"net"
+	"time"
 )
 
 type gantryTCPClient struct {
@@ -44,18 +43,22 @@ func NewGantryUDPClient(ip, port string) *gantryUDPClient {
 	}
 }
 
-func (client *gantryTCPClient) Connect() (*gantryTCPConn, error) {
+func (client *gantryTCPClient) Connect() error {
 
 	addr, err := net.ResolveTCPAddr("tcp4", client.RemoteAddr+":"+client.RemotePort)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if tcpConn, err := net.DialTCP("tcp4", nil, addr); err != nil { //.DialUDP("udp", nil, addr); err != nil {
-		return nil, err
+		return err
 	} else {
-		return &gantryTCPConn{tcpConn}, nil
+		tcpConn.SetWriteBuffer(1024)
+		tcpConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		tcpConn.SetNoDelay(true)
+		client.conn = tcpConn
+		return nil
 	}
 }
 
@@ -63,17 +66,22 @@ func (client *gantryTCPClient) Disconnect() error {
 	return client.conn.Close()
 }
 
-func (client *gantryTCPConn) WriteMessage(data []byte) error {
+func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
 
-	//client.conn.SetWriteBuffer(512)
-	client.conn.SetWriteBuffer(1024)
-	client.conn.SetNoDelay(true)
+	//fmt.Println(envelope.String())
 
-	if _, err := client.conn.Write(data); err != nil {
+	data, err := protobuf.Marshal(envelope)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	dataSize := len(data)
+	//fmt.Println("Total size:", dataSize)
+
+	data = append([]byte{byte(dataSize)}, data...)
+
+	_, err = client.conn.Write(data)
+	return err
 
 }
 
@@ -90,24 +98,25 @@ func (client *gantryUDPClient) Connect() (*gantryUDPConn, error) {
 	if udpConn, err := net.DialUDP("udp", nil, addr); err != nil {
 		return nil, err
 	} else {
+		udpConn.SetWriteBuffer(512)
 		return &gantryUDPConn{udpConn}, nil
 	}
 
 }
 
-func (client *gantryUDPConn) WriteMessage(data []byte) error {
+func (client *gantryUDPConn) Write(envelope *proto.Envelope) error {
+
+	data, err := protobuf.Marshal(envelope)
+	if err != nil {
+		return err
+	}
+
 	if len(data) > 512 {
 		return errors.New("UDP packet too big. Max allowed: 512 bytes")
 	}
 
-	client.conn.SetWriteBuffer(512)
-
-	if _, err := client.conn.Write(data); err != nil {
-		return err
-	}
-
-	return nil
-
+	_, err = client.conn.Write(data)
+	return err
 }
 
 func (client *gantryUDPConn) Close() error {

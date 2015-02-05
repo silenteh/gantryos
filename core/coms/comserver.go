@@ -2,18 +2,21 @@ package coms
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
-	"io/ioutil"
+	//"io"
+	//"io/ioutil"
 	"net"
 )
 
-type gantryTCPServer struct {
-	LocalAddr string
-	LocalPort string
-	conn      *net.TCPListener
+type GantryTCPServer struct {
+	LocalAddr       string
+	LocalPort       string
+	envelopeChannel chan *proto.Envelope // from this channel we can read all the data coming from the clients
+	conn            *net.TCPListener
 }
 
 type gantryUDPServer struct {
@@ -25,10 +28,11 @@ type gantryUDPServer struct {
 // this is the module responsible for setting up a communication channel (TCP or UDP)
 // where the data (protobuf, or JSON) can be exchanged
 
-func NewGantryTCPServer(ip, port string) *gantryTCPServer {
-	return &gantryTCPServer{
-		LocalAddr: ip,
-		LocalPort: port,
+func NewGantryTCPServer(ip, port string, dataChannel chan *proto.Envelope) *GantryTCPServer {
+	return &GantryTCPServer{
+		LocalAddr:       ip,
+		LocalPort:       port,
+		envelopeChannel: dataChannel,
 	}
 }
 
@@ -39,42 +43,92 @@ func NewGantryUDPServer(ip, port string) *gantryUDPServer {
 	}
 }
 
-func (s *gantryTCPServer) StartTCP() {
+func (s *GantryTCPServer) StartTCP() {
 
-	addr, err := net.ResolveTCPAddr("tcp", s.LocalAddr+":"+s.LocalPort)
+	// the for loop blocks the current thread therefore starts a differen one
+	go func(server *GantryTCPServer) {
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+		addr, err := net.ResolveTCPAddr("tcp", s.LocalAddr+":"+s.LocalPort)
 
-	fmt.Println("Starting to listen on", s.LocalAddr, ":", s.LocalPort)
-	ln, err := net.ListenTCP("tcp", addr)
-
-	// assign the conn to stop the server
-	s.conn = ln
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	fmt.Println("OK: Listening on", s.LocalAddr, ":", s.LocalPort)
-
-	for {
-		if conn, err := ln.Accept(); err == nil {
-			fmt.Println("Got a new connection request")
-			go handleTCPConnection(conn)
+		if err != nil {
+			log.Fatalln(err)
 		}
-	}
+
+		ln, err := net.ListenTCP("tcp", addr)
+
+		// assign the conn to stop the server
+		s.conn = ln
+
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		log.Infoln("GantryOS Master is listening on", s.LocalAddr, ":", s.LocalPort)
+
+		for {
+			if conn, err := ln.AcceptTCP(); err == nil {
+				go handleTCPConnection(conn, s.envelopeChannel)
+			}
+		}
+
+	}(s)
 
 }
 
-func (s *gantryTCPServer) Stop() error {
+func (s *GantryTCPServer) Stop() error {
 	return s.conn.Close()
 }
 
 func (s *gantryUDPServer) Stop() error {
 	return s.conn.Close()
 }
+
+// Handles incoming requests.
+func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
+
+	//fmt.Println("Server receiving data")
+	var err error
+
+	defer conn.Close()
+	var buffer bytes.Buffer
+	reader := bufio.NewReader(conn)
+	//writer := bufio.NewWriter(&buffer)
+
+	sizeByte, err := reader.ReadByte()
+	totalSize := int(sizeByte)
+	//fmt.Println("Total size:", totalSize)
+
+	//fmt.Println("Server reading data - 1")
+
+	data, err := reader.Peek(totalSize)
+
+	_, err = buffer.Write(data)
+
+	//data, err := conn(reader.)
+	//fmt.Println("Server reading data - 2")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	log.Errorln(err)
+	// 	return
+	// }
+
+	envelope := new(proto.Envelope)
+
+	err = protobuf.Unmarshal(buffer.Bytes(), envelope)
+	if err != nil {
+		fmt.Println("Failed to parse client sent data")
+		log.Errorln("Failed to parse client sent data:", err)
+		return
+	}
+
+	fmt.Println("Server: writing data to channel")
+	// it's a buffered channel, therefore this method does not block (unless the channel is full)
+	// TODO: notify when the channel is full
+	dataChannel <- envelope
+
+}
+
+//==============================================================================================================
 
 func StartUDP(ip string, port string) {
 
@@ -90,27 +144,6 @@ func StartUDP(ip string, port string) {
 	}
 
 	go handleUDPConnection(conn)
-
-}
-
-// Handles incoming requests.
-func handleTCPConnection(conn net.Conn) {
-
-	defer conn.Close()
-	reader := bufio.NewReader(conn)
-
-	data, err := ioutil.ReadAll(reader)
-
-	fmt.Println("Reading connection data")
-
-	if err != nil {
-		log.Errorln(err)
-		return
-	}
-
-	envelope := new(proto.Envelope)
-
-	fmt.Println(protobuf.Unmarshal(data, envelope))
 
 }
 
