@@ -335,7 +335,7 @@ func (x *DiscoveryInfo_Visibility) UnmarshalJSON(data []byte) error {
 // future which might be used
 type MasterInfo struct {
 	Id               *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	Ip               *uint32 `protobuf:"varint,2,opt,name=ip" json:"ip,omitempty"`
+	Ip               *string `protobuf:"bytes,2,opt,name=ip" json:"ip,omitempty"`
 	Port             *uint32 `protobuf:"varint,3,opt,name=port,def=6050" json:"port,omitempty"`
 	Pid              *string `protobuf:"bytes,4,opt,name=pid" json:"pid,omitempty"`
 	Hostname         *string `protobuf:"bytes,5,opt,name=hostname" json:"hostname,omitempty"`
@@ -354,11 +354,11 @@ func (m *MasterInfo) GetId() string {
 	return ""
 }
 
-func (m *MasterInfo) GetIp() uint32 {
+func (m *MasterInfo) GetIp() string {
 	if m != nil && m.Ip != nil {
 		return *m.Ip
 	}
-	return 0
+	return ""
 }
 
 func (m *MasterInfo) GetPort() uint32 {
@@ -1255,7 +1255,7 @@ type ContainerInfo struct {
 	// Note that anything passed to this field is not guaranteed
 	// to be supported moving forward, as we might move away from
 	// the docker CLI.
-	Parameters []*Parameter `protobuf:"bytes,5,rep,name=parameters" json:"parameters,omitempty"`
+	Parameters *Parameters `protobuf:"bytes,5,opt,name=parameters" json:"parameters,omitempty"`
 	// With this flag set to true, the docker containerizer will
 	// pull the docker image from the registry even if the image
 	// is already downloaded on the slave.
@@ -1263,7 +1263,7 @@ type ContainerInfo struct {
 	Type           *ContainerInfo_Type `protobuf:"varint,7,opt,name=type,enum=proto.ContainerInfo_Type,def=1" json:"type,omitempty"`
 	Volumes        []*Volume           `protobuf:"bytes,8,rep,name=volumes" json:"volumes,omitempty"`
 	Hostname       *string             `protobuf:"bytes,9,opt,name=hostname" json:"hostname,omitempty"`
-	Environments   []*Environment      `protobuf:"bytes,10,rep,name=environments" json:"environments,omitempty"`
+	Environments   *Environment        `protobuf:"bytes,10,opt,name=environments" json:"environments,omitempty"`
 	// user name space ?
 	// probably we need to define a user message
 	User             *User  `protobuf:"bytes,11,opt,name=user" json:"user,omitempty"`
@@ -1305,7 +1305,7 @@ func (m *ContainerInfo) GetPrivileged() bool {
 	return Default_ContainerInfo_Privileged
 }
 
-func (m *ContainerInfo) GetParameters() []*Parameter {
+func (m *ContainerInfo) GetParameters() *Parameters {
 	if m != nil {
 		return m.Parameters
 	}
@@ -1340,7 +1340,7 @@ func (m *ContainerInfo) GetHostname() string {
 	return ""
 }
 
-func (m *ContainerInfo) GetEnvironments() []*Environment {
+func (m *ContainerInfo) GetEnvironments() *Environment {
 	if m != nil {
 		return m.Environments
 	}
@@ -1680,22 +1680,28 @@ func (m *MasterInfo) Unmarshal(data []byte) error {
 			m.Id = &s
 			index = postIndex
 		case 2:
-			if wireType != 0 {
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Ip", wireType)
 			}
-			var v uint32
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				v |= (uint32(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Ip = &v
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.Ip = &s
+			index = postIndex
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Port", wireType)
@@ -4392,8 +4398,12 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Parameters = append(m.Parameters, &Parameter{})
-			m.Parameters[len(m.Parameters)-1].Unmarshal(data[index:postIndex])
+			if m.Parameters == nil {
+				m.Parameters = &Parameters{}
+			}
+			if err := m.Parameters.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
 			index = postIndex
 		case 6:
 			if wireType != 0 {
@@ -4496,8 +4506,12 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Environments = append(m.Environments, &Environment{})
-			m.Environments[len(m.Environments)-1].Unmarshal(data[index:postIndex])
+			if m.Environments == nil {
+				m.Environments = &Environment{}
+			}
+			if err := m.Environments.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
 			index = postIndex
 		case 11:
 			if wireType != 2 {
@@ -5726,7 +5740,7 @@ func (this *ContainerInfo) String() string {
 		`Network:` + valueToStringGantryos(this.Network) + `,`,
 		`PortMappings:` + strings.Replace(fmt1.Sprintf("%v", this.PortMappings), "ContainerInfo_PortMapping", "ContainerInfo_PortMapping", 1) + `,`,
 		`Privileged:` + valueToStringGantryos(this.Privileged) + `,`,
-		`Parameters:` + strings.Replace(fmt1.Sprintf("%v", this.Parameters), "Parameter", "Parameter", 1) + `,`,
+		`Parameters:` + strings.Replace(fmt1.Sprintf("%v", this.Parameters), "Parameters", "Parameters", 1) + `,`,
 		`ForcePullImage:` + valueToStringGantryos(this.ForcePullImage) + `,`,
 		`Type:` + valueToStringGantryos(this.Type) + `,`,
 		`Volumes:` + strings.Replace(fmt1.Sprintf("%v", this.Volumes), "Volume", "Volume", 1) + `,`,
@@ -5867,7 +5881,8 @@ func (m *MasterInfo) Size() (n int) {
 		n += 1 + l + sovGantryos(uint64(l))
 	}
 	if m.Ip != nil {
-		n += 1 + sovGantryos(uint64(*m.Ip))
+		l = len(*m.Ip)
+		n += 1 + l + sovGantryos(uint64(l))
 	}
 	if m.Port != nil {
 		n += 1 + sovGantryos(uint64(*m.Port))
@@ -6377,11 +6392,9 @@ func (m *ContainerInfo) Size() (n int) {
 	if m.Privileged != nil {
 		n += 2
 	}
-	if len(m.Parameters) > 0 {
-		for _, e := range m.Parameters {
-			l = e.Size()
-			n += 1 + l + sovGantryos(uint64(l))
-		}
+	if m.Parameters != nil {
+		l = m.Parameters.Size()
+		n += 1 + l + sovGantryos(uint64(l))
 	}
 	if m.ForcePullImage != nil {
 		n += 2
@@ -6399,11 +6412,9 @@ func (m *ContainerInfo) Size() (n int) {
 		l = len(*m.Hostname)
 		n += 1 + l + sovGantryos(uint64(l))
 	}
-	if len(m.Environments) > 0 {
-		for _, e := range m.Environments {
-			l = e.Size()
-			n += 1 + l + sovGantryos(uint64(l))
-		}
+	if m.Environments != nil {
+		l = m.Environments.Size()
+		n += 1 + l + sovGantryos(uint64(l))
 	}
 	if m.User != nil {
 		l = m.User.Size()
@@ -6608,7 +6619,7 @@ func NewPopulatedMasterInfo(r randyGantryos, easy bool) *MasterInfo {
 		this.Id = &v1
 	}
 	if r.Intn(10) != 0 {
-		v2 := r.Uint32()
+		v2 := randStringGantryos(r)
 		this.Ip = &v2
 	}
 	if r.Intn(10) != 0 {
@@ -7148,37 +7159,29 @@ func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 		this.Privileged = &v64
 	}
 	if r.Intn(10) != 0 {
-		v65 := r.Intn(10)
-		this.Parameters = make([]*Parameter, v65)
-		for i := 0; i < v65; i++ {
-			this.Parameters[i] = NewPopulatedParameter(r, easy)
-		}
+		this.Parameters = NewPopulatedParameters(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v66 := bool(r.Intn(2) == 0)
-		this.ForcePullImage = &v66
+		v65 := bool(r.Intn(2) == 0)
+		this.ForcePullImage = &v65
 	}
 	if r.Intn(10) != 0 {
-		v67 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
-		this.Type = &v67
+		v66 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
+		this.Type = &v66
 	}
 	if r.Intn(10) != 0 {
-		v68 := r.Intn(10)
-		this.Volumes = make([]*Volume, v68)
-		for i := 0; i < v68; i++ {
+		v67 := r.Intn(10)
+		this.Volumes = make([]*Volume, v67)
+		for i := 0; i < v67; i++ {
 			this.Volumes[i] = NewPopulatedVolume(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v69 := randStringGantryos(r)
-		this.Hostname = &v69
+		v68 := randStringGantryos(r)
+		this.Hostname = &v68
 	}
 	if r.Intn(10) != 0 {
-		v70 := r.Intn(10)
-		this.Environments = make([]*Environment, v70)
-		for i := 0; i < v70; i++ {
-			this.Environments[i] = NewPopulatedEnvironment(r, easy)
-		}
+		this.Environments = NewPopulatedEnvironment(r, easy)
 	}
 	if r.Intn(10) != 0 {
 		this.User = NewPopulatedUser(r, easy)
@@ -7191,13 +7194,13 @@ func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 
 func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *ContainerInfo_PortMapping {
 	this := &ContainerInfo_PortMapping{}
-	v71 := r.Uint32()
-	this.HostPort = &v71
-	v72 := r.Uint32()
-	this.ContainerPort = &v72
+	v69 := r.Uint32()
+	this.HostPort = &v69
+	v70 := r.Uint32()
+	this.ContainerPort = &v70
 	if r.Intn(10) != 0 {
-		v73 := randStringGantryos(r)
-		this.Protocol = &v73
+		v71 := randStringGantryos(r)
+		this.Protocol = &v71
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7208,22 +7211,22 @@ func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *Containe
 func NewPopulatedUser(r randyGantryos, easy bool) *User {
 	this := &User{}
 	if r.Intn(10) != 0 {
-		v74 := randStringGantryos(r)
-		this.Name = &v74
+		v72 := randStringGantryos(r)
+		this.Name = &v72
 	}
 	if r.Intn(10) != 0 {
-		v75 := r.Int31()
+		v73 := r.Int31()
 		if r.Intn(2) == 0 {
-			v75 *= -1
+			v73 *= -1
 		}
-		this.Uid = &v75
+		this.Uid = &v73
 	}
 	if r.Intn(10) != 0 {
-		v76 := r.Int31()
+		v74 := r.Int31()
 		if r.Intn(2) == 0 {
-			v76 *= -1
+			v74 *= -1
 		}
-		this.Gid = &v76
+		this.Gid = &v74
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7233,10 +7236,10 @@ func NewPopulatedUser(r randyGantryos, easy bool) *User {
 
 func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 	this := &Parameter{}
-	v77 := randStringGantryos(r)
-	this.Key = &v77
-	v78 := randStringGantryos(r)
-	this.Value = &v78
+	v75 := randStringGantryos(r)
+	this.Key = &v75
+	v76 := randStringGantryos(r)
+	this.Value = &v76
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
 	}
@@ -7246,9 +7249,9 @@ func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 	this := &Parameters{}
 	if r.Intn(10) != 0 {
-		v79 := r.Intn(10)
-		this.Parameter = make([]*Parameter, v79)
-		for i := 0; i < v79; i++ {
+		v77 := r.Intn(10)
+		this.Parameter = make([]*Parameter, v77)
+		for i := 0; i < v77; i++ {
 			this.Parameter[i] = NewPopulatedParameter(r, easy)
 		}
 	}
@@ -7261,9 +7264,9 @@ func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 	this := &Labels{}
 	if r.Intn(10) != 0 {
-		v80 := r.Intn(10)
-		this.Labels = make([]*Label, v80)
-		for i := 0; i < v80; i++ {
+		v78 := r.Intn(10)
+		this.Labels = make([]*Label, v78)
+		for i := 0; i < v78; i++ {
 			this.Labels[i] = NewPopulatedLabel(r, easy)
 		}
 	}
@@ -7275,11 +7278,11 @@ func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 
 func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 	this := &Label{}
-	v81 := randStringGantryos(r)
-	this.Key = &v81
+	v79 := randStringGantryos(r)
+	this.Key = &v79
 	if r.Intn(10) != 0 {
-		v82 := randStringGantryos(r)
-		this.Value = &v82
+		v80 := randStringGantryos(r)
+		this.Value = &v80
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7289,15 +7292,15 @@ func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 
 func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 	this := &Port{}
-	v83 := r.Uint32()
-	this.Number = &v83
+	v81 := r.Uint32()
+	this.Number = &v81
 	if r.Intn(10) != 0 {
-		v84 := randStringGantryos(r)
-		this.Name = &v84
+		v82 := randStringGantryos(r)
+		this.Name = &v82
 	}
 	if r.Intn(10) != 0 {
-		v85 := randStringGantryos(r)
-		this.Protocol = &v85
+		v83 := randStringGantryos(r)
+		this.Protocol = &v83
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7308,9 +7311,9 @@ func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 	this := &Ports{}
 	if r.Intn(10) != 0 {
-		v86 := r.Intn(10)
-		this.Ports = make([]*Port, v86)
-		for i := 0; i < v86; i++ {
+		v84 := r.Intn(10)
+		this.Ports = make([]*Port, v84)
+		for i := 0; i < v84; i++ {
 			this.Ports[i] = NewPopulatedPort(r, easy)
 		}
 	}
@@ -7323,24 +7326,24 @@ func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 func NewPopulatedDiscoveryInfo(r randyGantryos, easy bool) *DiscoveryInfo {
 	this := &DiscoveryInfo{}
 	if r.Intn(10) != 0 {
-		v87 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
-		this.Visibility = &v87
+		v85 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
+		this.Visibility = &v85
+	}
+	if r.Intn(10) != 0 {
+		v86 := randStringGantryos(r)
+		this.Name = &v86
+	}
+	if r.Intn(10) != 0 {
+		v87 := randStringGantryos(r)
+		this.Environment = &v87
 	}
 	if r.Intn(10) != 0 {
 		v88 := randStringGantryos(r)
-		this.Name = &v88
+		this.Location = &v88
 	}
 	if r.Intn(10) != 0 {
 		v89 := randStringGantryos(r)
-		this.Environment = &v89
-	}
-	if r.Intn(10) != 0 {
-		v90 := randStringGantryos(r)
-		this.Location = &v90
-	}
-	if r.Intn(10) != 0 {
-		v91 := randStringGantryos(r)
-		this.Version = &v91
+		this.Version = &v89
 	}
 	if r.Intn(10) != 0 {
 		this.Ports = NewPopulatedPorts(r, easy)
@@ -7371,9 +7374,9 @@ func randUTF8RuneGantryos(r randyGantryos) rune {
 	return res
 }
 func randStringGantryos(r randyGantryos) string {
-	v92 := r.Intn(100)
-	tmps := make([]rune, v92)
-	for i := 0; i < v92; i++ {
+	v90 := r.Intn(100)
+	tmps := make([]rune, v90)
+	for i := 0; i < v90; i++ {
 		tmps[i] = randUTF8RuneGantryos(r)
 	}
 	return string(tmps)
@@ -7395,11 +7398,11 @@ func randFieldGantryos(data []byte, r randyGantryos, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
-		v93 := r.Int63()
+		v91 := r.Int63()
 		if r.Intn(2) == 0 {
-			v93 *= -1
+			v91 *= -1
 		}
-		data = encodeVarintPopulateGantryos(data, uint64(v93))
+		data = encodeVarintPopulateGantryos(data, uint64(v91))
 	case 1:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -7446,9 +7449,10 @@ func (m *MasterInfo) MarshalTo(data []byte) (n int, err error) {
 		i += copy(data[i:], *m.Id)
 	}
 	if m.Ip != nil {
-		data[i] = 0x10
+		data[i] = 0x12
 		i++
-		i = encodeVarintGantryos(data, i, uint64(*m.Ip))
+		i = encodeVarintGantryos(data, i, uint64(len(*m.Ip)))
+		i += copy(data[i:], *m.Ip)
 	}
 	if m.Port != nil {
 		data[i] = 0x18
@@ -8538,17 +8542,15 @@ func (m *ContainerInfo) MarshalTo(data []byte) (n int, err error) {
 		}
 		i++
 	}
-	if len(m.Parameters) > 0 {
-		for _, msg := range m.Parameters {
-			data[i] = 0x2a
-			i++
-			i = encodeVarintGantryos(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+	if m.Parameters != nil {
+		data[i] = 0x2a
+		i++
+		i = encodeVarintGantryos(data, i, uint64(m.Parameters.Size()))
+		n20, err := m.Parameters.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
 		}
+		i += n20
 	}
 	if m.ForcePullImage != nil {
 		data[i] = 0x30
@@ -8583,27 +8585,25 @@ func (m *ContainerInfo) MarshalTo(data []byte) (n int, err error) {
 		i = encodeVarintGantryos(data, i, uint64(len(*m.Hostname)))
 		i += copy(data[i:], *m.Hostname)
 	}
-	if len(m.Environments) > 0 {
-		for _, msg := range m.Environments {
-			data[i] = 0x52
-			i++
-			i = encodeVarintGantryos(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+	if m.Environments != nil {
+		data[i] = 0x52
+		i++
+		i = encodeVarintGantryos(data, i, uint64(m.Environments.Size()))
+		n21, err := m.Environments.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
 		}
+		i += n21
 	}
 	if m.User != nil {
 		data[i] = 0x5a
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.User.Size()))
-		n20, err := m.User.MarshalTo(data[i:])
+		n22, err := m.User.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n20
+		i += n22
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -8936,21 +8936,21 @@ func (m *DiscoveryInfo) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0x32
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Ports.Size()))
-		n21, err := m.Ports.MarshalTo(data[i:])
+		n23, err := m.Ports.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n21
+		i += n23
 	}
 	if m.Labels != nil {
 		data[i] = 0x3a
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Labels.Size()))
-		n22, err := m.Labels.MarshalTo(data[i:])
+		n24, err := m.Labels.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n22
+		i += n24
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -8991,7 +8991,7 @@ func (this *MasterInfo) GoString() string {
 	}
 	s := strings1.Join([]string{`&proto.MasterInfo{` +
 		`Id:` + valueToGoStringGantryos(this.Id, "string"),
-		`Ip:` + valueToGoStringGantryos(this.Ip, "uint32"),
+		`Ip:` + valueToGoStringGantryos(this.Ip, "string"),
 		`Port:` + valueToGoStringGantryos(this.Port, "uint32"),
 		`Pid:` + valueToGoStringGantryos(this.Pid, "string"),
 		`Hostname:` + valueToGoStringGantryos(this.Hostname, "string"),
@@ -11636,13 +11636,8 @@ func (this *ContainerInfo) VerboseEqual(that interface{}) error {
 	} else if that1.Privileged != nil {
 		return fmt3.Errorf("Privileged this(%v) Not Equal that(%v)", this.Privileged, that1.Privileged)
 	}
-	if len(this.Parameters) != len(that1.Parameters) {
-		return fmt3.Errorf("Parameters this(%v) Not Equal that(%v)", len(this.Parameters), len(that1.Parameters))
-	}
-	for i := range this.Parameters {
-		if !this.Parameters[i].Equal(that1.Parameters[i]) {
-			return fmt3.Errorf("Parameters this[%v](%v) Not Equal that[%v](%v)", i, this.Parameters[i], i, that1.Parameters[i])
-		}
+	if !this.Parameters.Equal(that1.Parameters) {
+		return fmt3.Errorf("Parameters this(%v) Not Equal that(%v)", this.Parameters, that1.Parameters)
 	}
 	if this.ForcePullImage != nil && that1.ForcePullImage != nil {
 		if *this.ForcePullImage != *that1.ForcePullImage {
@@ -11679,13 +11674,8 @@ func (this *ContainerInfo) VerboseEqual(that interface{}) error {
 	} else if that1.Hostname != nil {
 		return fmt3.Errorf("Hostname this(%v) Not Equal that(%v)", this.Hostname, that1.Hostname)
 	}
-	if len(this.Environments) != len(that1.Environments) {
-		return fmt3.Errorf("Environments this(%v) Not Equal that(%v)", len(this.Environments), len(that1.Environments))
-	}
-	for i := range this.Environments {
-		if !this.Environments[i].Equal(that1.Environments[i]) {
-			return fmt3.Errorf("Environments this[%v](%v) Not Equal that[%v](%v)", i, this.Environments[i], i, that1.Environments[i])
-		}
+	if !this.Environments.Equal(that1.Environments) {
+		return fmt3.Errorf("Environments this(%v) Not Equal that(%v)", this.Environments, that1.Environments)
 	}
 	if !this.User.Equal(that1.User) {
 		return fmt3.Errorf("User this(%v) Not Equal that(%v)", this.User, that1.User)
@@ -11750,13 +11740,8 @@ func (this *ContainerInfo) Equal(that interface{}) bool {
 	} else if that1.Privileged != nil {
 		return false
 	}
-	if len(this.Parameters) != len(that1.Parameters) {
+	if !this.Parameters.Equal(that1.Parameters) {
 		return false
-	}
-	for i := range this.Parameters {
-		if !this.Parameters[i].Equal(that1.Parameters[i]) {
-			return false
-		}
 	}
 	if this.ForcePullImage != nil && that1.ForcePullImage != nil {
 		if *this.ForcePullImage != *that1.ForcePullImage {
@@ -11793,13 +11778,8 @@ func (this *ContainerInfo) Equal(that interface{}) bool {
 	} else if that1.Hostname != nil {
 		return false
 	}
-	if len(this.Environments) != len(that1.Environments) {
+	if !this.Environments.Equal(that1.Environments) {
 		return false
-	}
-	for i := range this.Environments {
-		if !this.Environments[i].Equal(that1.Environments[i]) {
-			return false
-		}
 	}
 	if !this.User.Equal(that1.User) {
 		return false

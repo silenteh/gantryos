@@ -13,13 +13,15 @@ type port struct {
 	Protocol string // * means could be TCP, UDP, both TCP_UDP or * or empty
 }
 
+type portsMapping []*portMapping
+
 type portMapping struct {
 	HostPort      int
 	ContainerPort int
 	Protocol      string
 }
 
-func (p *port) toProtoBuf() *proto.Port {
+func (p *port) ToProtoBuf() *proto.Port {
 
 	port := new(proto.Port)
 	port.Name = &p.Name
@@ -28,18 +30,36 @@ func (p *port) toProtoBuf() *proto.Port {
 	return port
 }
 
-func (p ports) toProtoBuf() *proto.Ports {
+func (p ports) ToProtoBuf() *proto.Ports {
 
 	ports := new(proto.Ports)
 
 	portsProto := make([]*proto.Port, len(p))
 	for index, res := range p {
-		portsProto[index] = res.toProtoBuf()
+		portsProto[index] = res.ToProtoBuf()
 	}
 
 	ports.Ports = portsProto
 
 	return ports
+}
+
+func (pm *portMapping) ToProtoBuf() *proto.ContainerInfo_PortMapping {
+	portMapping := new(proto.ContainerInfo_PortMapping)
+	portMapping.ContainerPort = protobuf.Uint32(uint32(pm.ContainerPort))
+	portMapping.HostPort = protobuf.Uint32(uint32(pm.HostPort))
+	portMapping.Protocol = &pm.Protocol
+	return portMapping
+}
+
+func (pms portsMapping) ToProtoBuf() []*proto.ContainerInfo_PortMapping {
+
+	portsProto := make([]*proto.ContainerInfo_PortMapping, len(pms))
+	for index, res := range pms {
+		portsProto[index] = res.ToProtoBuf()
+	}
+
+	return portsProto
 }
 
 func NewPort(number int, name, proto string) *port {

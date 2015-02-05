@@ -21,7 +21,7 @@ option (gogoproto.unmarshaler_all) = true;
  */
 message MasterInfo {  
   optional string id = 1;
-  optional uint32 ip = 2;
+  optional string ip = 2;
   optional uint32 port = 3 [default = 6050];
   optional string pid = 4;
   optional string hostname = 5;
@@ -429,7 +429,7 @@ message ContainerInfo {
   // Note that anything passed to this field is not guaranteed
   // to be supported moving forward, as we might move away from
   // the docker CLI.
-  repeated Parameter parameters = 5;
+  optional Parameters parameters = 5;
 
   // With this flag set to true, the docker containerizer will
   // pull the docker image from the registry even if the image
@@ -440,11 +440,12 @@ message ContainerInfo {
   optional Type type = 7 [default = DOCKER];
   repeated Volume volumes = 8;
   optional string hostname = 9;
-  repeated Environment environments = 10;
+  optional Environment environments = 10;
 
   // user name space ?
   // probably we need to define a user message
   optional User user = 11;
+  
   
 }
 

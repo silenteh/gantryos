@@ -18,7 +18,7 @@ type commandSource struct {
 	Extract    bool // not supported yet
 }
 
-func (cs *commandSource) toProtoBuf() *proto.CommandInfo_URI {
+func (cs *commandSource) ToProtoBuf() *proto.CommandInfo_URI {
 
 	cmdSrc := new(proto.CommandInfo_URI)
 	cmdSrc.Value = &cs.Path
@@ -29,12 +29,12 @@ func (cs *commandSource) toProtoBuf() *proto.CommandInfo_URI {
 
 }
 
-func (css commandSources) toProtoBuf() []*proto.CommandInfo_URI {
+func (css commandSources) ToProtoBuf() []*proto.CommandInfo_URI {
 
 	commandSourcesProto := make([]*proto.CommandInfo_URI, len(css))
 
 	for index, res := range css {
-		commandSourcesProto[index] = res.toProtoBuf()
+		commandSourcesProto[index] = res.ToProtoBuf()
 	}
 
 	return commandSourcesProto
@@ -59,14 +59,14 @@ func NewCommand(shell bool, source *commandSources, envs []*environmentVariable,
 	}
 }
 
-func (c *command) toProtoBuf() *proto.CommandInfo {
+func (c *command) ToProtoBuf() *proto.CommandInfo {
 
 	cmd := new(proto.CommandInfo)
 	cmd.Shell = &c.Shell
-	cmd.Uris = c.ShellSources.toProtoBuf()
-	cmd.Environment = c.EnvironmentVariables.toProtoBuf()
+	cmd.Uris = c.ShellSources.ToProtoBuf()
+	cmd.Environment = c.EnvironmentVariables.ToProtoBuf()
 	cmd.Arguments = c.Arguments
-	cmd.User = c.User.toProtoBuf()
+	cmd.User = c.User.ToProtoBuf()
 
 	return cmd
 }

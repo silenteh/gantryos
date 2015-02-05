@@ -19,7 +19,7 @@ func NewUser(uid, gid int, name string) *user {
 	}
 }
 
-func (u *user) toProtoBuf() *proto.User {
+func (u *user) ToProtoBuf() *proto.User {
 
 	user := new(proto.User)
 	user.Gid = protobuf.Int32(int32(u.Gid))

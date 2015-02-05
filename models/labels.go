@@ -16,7 +16,7 @@ func NewLabel(key, value string) *label {
 	}
 }
 
-func (l *label) toProtoBuf() *proto.Label {
+func (l *label) ToProtoBuf() *proto.Label {
 
 	label := new(proto.Label)
 	label.Key = &l.Key
@@ -24,13 +24,13 @@ func (l *label) toProtoBuf() *proto.Label {
 	return label
 }
 
-func (ls labels) toProtoBuf() *proto.Labels {
+func (ls labels) ToProtoBuf() *proto.Labels {
 
 	labels := new(proto.Labels)
 
 	protoLabels := make([]*proto.Label, len(ls))
 	for index, res := range ls {
-		protoLabels[index] = res.toProtoBuf()
+		protoLabels[index] = res.ToProtoBuf()
 	}
 	labels.Labels = protoLabels
 

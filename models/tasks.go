@@ -14,20 +14,21 @@ type Task struct {
 	Labels    labels
 }
 
-func (t *Task) toProtoBufMessage() *proto.TaskInfo {
+func (t *Task) ToProtoBuf() *proto.TaskInfo {
 
 	taskInfo := new(proto.TaskInfo)
 	taskInfo.TaskId = &t.Id
 	taskInfo.TaskName = &t.Name
 	taskInfo.TaskVersion = &t.Version
-	taskInfo.Slave = t.Slave.toProtoBuf()
-	taskInfo.Resources = t.Resources.toProtoBuf()
-	taskInfo.Command = t.Command.toProtoBuf()
+	taskInfo.Slave = t.Slave.ToProtoBuf()
+	taskInfo.Resources = t.Resources.ToProtoBuf()
+	taskInfo.Command = t.Command.ToProtoBuf()
 
 	// container
+	taskInfo.Container = t.Container.ToProtoBuf()
 
-	taskInfo.Discovery = t.Discovery.toProfoBuf()
-	taskInfo.Labels = t.Labels.toProtoBuf()
+	taskInfo.Discovery = t.Discovery.ToProtoBuf()
+	taskInfo.Labels = t.Labels.ToProtoBuf()
 
 	return taskInfo
 }

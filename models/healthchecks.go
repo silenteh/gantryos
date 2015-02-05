@@ -19,7 +19,7 @@ type healthcheck struct {
 	GracePeriodSeconds   int    //float64 // Amount of time to allow failed health checks since launch. DEFAULT 10
 }
 
-func (hc *healthcheck) toProtoBuf() *proto.HealthCheck {
+func (hc *healthcheck) ToProtoBuf() *proto.HealthCheck {
 
 	healthCheckProto := new(proto.HealthCheck)
 
@@ -37,11 +37,11 @@ func (hc *healthcheck) toProtoBuf() *proto.HealthCheck {
 	return healthCheckProto
 }
 
-func (hcs healthchecks) toProtoBuf() []*proto.HealthCheck {
+func (hcs healthchecks) ToProtoBuf() []*proto.HealthCheck {
 	hcsProto := make([]*proto.HealthCheck, len(hcs))
 
 	for index, el := range hcs {
-		hcsProto[index] = el.toProtoBuf()
+		hcsProto[index] = el.ToProtoBuf()
 	}
 
 	return hcsProto

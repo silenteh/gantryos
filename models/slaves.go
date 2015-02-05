@@ -14,7 +14,7 @@ type Slave struct {
 	Checkpoint bool
 }
 
-func (s *Slave) toProtoBuf() *proto.SlaveInfo {
+func (s *Slave) ToProtoBuf() *proto.SlaveInfo {
 
 	slave := new(proto.SlaveInfo)
 	slave.Id = &s.Id
@@ -22,7 +22,7 @@ func (s *Slave) toProtoBuf() *proto.SlaveInfo {
 	slave.Port = protobuf.Uint32(uint32(s.Port))
 	slave.Hostname = &s.Hostname
 	slave.Checkpoint = protobuf.Bool(s.Checkpoint)
-	slave.Resources = s.Resources.toProtoBuf()
+	slave.Resources = s.Resources.ToProtoBuf()
 
 	return slave
 }

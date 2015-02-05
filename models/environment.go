@@ -9,7 +9,7 @@ type environmentVariable struct {
 	Value string
 }
 
-func (e *environmentVariable) toProtoBuf() *proto.Environment_Variable {
+func (e *environmentVariable) ToProtoBuf() *proto.Environment_Variable {
 
 	env := new(proto.Environment_Variable)
 	env.Name = &e.Name
@@ -17,13 +17,13 @@ func (e *environmentVariable) toProtoBuf() *proto.Environment_Variable {
 	return env
 }
 
-func (ev environmentVariables) toProtoBuf() *proto.Environment {
+func (ev environmentVariables) ToProtoBuf() *proto.Environment {
 
 	envs := new(proto.Environment)
 
 	protoEnvs := make([]*proto.Environment_Variable, len(ev))
 	for index, res := range ev {
-		protoEnvs[index] = res.toProtoBuf()
+		protoEnvs[index] = res.ToProtoBuf()
 	}
 	envs.Variables = protoEnvs
 

@@ -33,13 +33,13 @@ func NewDiscovery(discoveryType int, prts ports, name, env, location, version st
 
 // TODO: implement the Discovery TYPE
 // we need to create an ENUM in PROTOBUF
-func (d discovery) toProfoBuf() *proto.DiscoveryInfo {
+func (d discovery) ToProtoBuf() *proto.DiscoveryInfo {
 	dProto := new(proto.DiscoveryInfo)
 	dProto.Name = &d.Name
 	dProto.Environment = &d.Environment
 	dProto.Location = &d.Location
 	dProto.Version = &d.Version
-	dProto.Ports = d.Ports.toProtoBuf()
-	dProto.Labels = d.Labels.toProtoBuf()
+	dProto.Ports = d.Ports.ToProtoBuf()
+	dProto.Labels = d.Labels.ToProtoBuf()
 	return dProto
 }

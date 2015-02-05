@@ -19,7 +19,7 @@ type containerVolume struct {
 	Permission    proto.Volume_Mode // CONTAINER_VOLUME_RO || CONTAINER_VOLUME_RW
 }
 
-func (cv containerVolume) toProtoBuf() *proto.Volume {
+func (cv containerVolume) ToProtoBuf() *proto.Volume {
 	cvProto := new(proto.Volume)
 	cvProto.HostPath = &cv.HostPath
 	cvProto.ContainerPath = &cv.ContainerPath
@@ -28,11 +28,11 @@ func (cv containerVolume) toProtoBuf() *proto.Volume {
 	return cvProto
 }
 
-func (cvs containerVolumes) toProtoBuf() []*proto.Volume {
+func (cvs containerVolumes) ToProtoBuf() []*proto.Volume {
 	hcsProto := make([]*proto.Volume, len(cvs))
 
 	for index, el := range cvs {
-		hcsProto[index] = el.toProtoBuf()
+		hcsProto[index] = el.ToProtoBuf()
 	}
 
 	return hcsProto

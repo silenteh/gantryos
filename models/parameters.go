@@ -9,7 +9,7 @@ type parameter struct {
 	Value string
 }
 
-func (p *parameter) toProtoBuf() *proto.Parameter {
+func (p *parameter) ToProtoBuf() *proto.Parameter {
 
 	param := new(proto.Parameter)
 	param.Key = &p.Key
@@ -17,13 +17,13 @@ func (p *parameter) toProtoBuf() *proto.Parameter {
 	return param
 }
 
-func (ps parameters) toProtoBuf() *proto.Parameters {
+func (ps parameters) ToProtoBuf() *proto.Parameters {
 
 	params := new(proto.Parameters)
 
 	protoParams := make([]*proto.Parameter, len(ps))
 	for index, res := range ps {
-		protoParams[index] = res.toProtoBuf()
+		protoParams[index] = res.ToProtoBuf()
 	}
 	params.Parameter = protoParams
 

@@ -20,7 +20,7 @@ type RangeValue struct {
 
 // ======================================================================================
 
-func (r *resource) toProtoBuf() *proto.Resource {
+func (r *resource) ToProtoBuf() *proto.Resource {
 
 	resource := new(proto.Resource)
 	resource.ResourceType = &r.Type
@@ -30,11 +30,11 @@ func (r *resource) toProtoBuf() *proto.Resource {
 	return resource
 }
 
-func (rs resources) toProtoBuf() []*proto.Resource {
+func (rs resources) ToProtoBuf() []*proto.Resource {
 
 	protoResources := make([]*proto.Resource, len(rs))
 	for index, res := range rs {
-		protoResources[index] = res.toProtoBuf()
+		protoResources[index] = res.ToProtoBuf()
 	}
 
 	return protoResources
