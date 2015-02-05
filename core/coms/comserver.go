@@ -101,7 +101,7 @@ func handleTCPConnection(conn net.Conn) {
 		return
 	}
 
-	envelope := new(proto.Envepope)
+	envelope := new(proto.Envelope)
 
 	protobuf.Unmarshal(data, envelope)
 }
@@ -120,7 +120,7 @@ func handleUDPConnection(conn *net.UDPConn) {
 		log.Errorln(err)
 	} else {
 
-		envelope := new(proto.Envepope)
+		envelope := new(proto.Envelope)
 		protobuf.Unmarshal(buffer[:totalBytes], envelope)
 	}
 

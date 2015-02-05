@@ -75,7 +75,7 @@ message TaskInfo {
   optional string taskVersion = 2;
   optional string task_id = 3;
   optional SlaveInfo slave = 4;
-  optional Resource resources = 5;
+  repeated Resource resources = 5;
   optional CommandInfo command = 6;
   // Task provided with a container will launch the container as part
   // of this task paired with the task's CommandInfo.
@@ -274,7 +274,7 @@ message HealthCheck {
     // for specific data in the response.
   }
 
-  repeated HTTP http = 1;
+  optional HTTP http = 1;
 
   // TODO(benh): Consider adding a URL health check strategy which
   // allows doing something similar to the HTTP strategy but
@@ -352,7 +352,7 @@ message CommandInfo {
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
-  optional string user = 7;
+  optional User user = 7;
 }
 
 
@@ -365,47 +365,26 @@ message CommandInfo {
  * TODO(benh): Add better support for "expected" resources (e.g.,
  * cpus, memory, disk, network).
  */
-message Volume {  
-  optional string name = 1;
-  optional Value.Type type = 2;
-  optional Value.Scalar scalar = 3;
-  optional Value.Ranges ranges = 4;
-  optional Value.Set set = 5;
-  optional string role = 6 [default = "*"];
+/**
+ * Describes a volume mapping either from host to container or vice
+ * versa. Both paths can either refer to a directory or a file.
+ */
+message Volume {
+  // Absolute path pointing to a directory or file in the container.
+  optional string container_path = 1;
 
-  message DiskInfo {
-    // Describes a persistent disk volume.
-    // A persistent disk volume will not be automatically garbage
-    // collected if the task/executor/slave terminates, but is
-    // re-offered to the framework(s) belonging to the 'role'.
-    // A framework can set the ID (if it is not set yet) to express
-    // the intention to create a new persistent disk volume from a
-    // regular disk resource. To reuse a previously created volume, a
-    // framework can launch a task/executor when it receives an offer
-    // with a persistent volume, i.e., ID is set.
-    // NOTE: Currently, we do not allow a persistent disk volume
-    // without a reservation (i.e., 'role' should not be '*').
-    message Persistence {
-      // A unique ID for the persistent disk volume.
-      // NOTE: The ID needs to be unique per role on each slave.
-      required string id = 1;
-    }
+  // Absolute path pointing to a directory or file on the host or a path
+  // relative to the container work directory.
+  optional string host_path = 2;
 
-    optional Persistence persistence = 1;
+  optional bool persistent = 3;
 
-    // Describes how this disk resource will be mounted in the
-    // container. If not set, the disk resource will be used as the
-    // sandbox. Otherwise, it will be mounted according to the
-    // 'container_path' inside 'volume'. The 'host_path' inside
-    // 'volume' is ignored.
-    // NOTE: If 'volume' is set but 'persistence' is not set, the
-    // volume will be automatically garbage collected after
-    // task/executor terminates. Currently, if 'persistence' is set,
-    // 'volume' must be set.
-    optional Volume volume = 2;
+  enum Mode {
+    RW = 1; // read-write.
+    RO = 2; // read-only.
   }
 
-  optional DiskInfo disk = 7;
+  optional Mode mode = 4;
 }
 
 
@@ -423,11 +402,11 @@ message ContainerInfo {
 
   // Network options.
   enum Network {
+    NONE = 0;
     HOST = 1;
-    BRIDGE = 2;
-    NONE = 3;
-    VLAN = 4;
-    GRE = 5;
+    BRIDGE = 2;    
+    VLAN = 3;
+    GRE = 4;
   }
 
   // Container Image Name
