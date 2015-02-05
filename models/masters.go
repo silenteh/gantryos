@@ -12,6 +12,15 @@ type master struct {
 	Hostname string
 }
 
+func NewMaster(id, ip, hostname string, port int) *master {
+	m := new(master)
+	m.Id = id
+	m.Ip = ip
+	m.Hostname = hostname
+	m.Port = port
+	return m
+}
+
 func (m *master) ToProtoBuf() *proto.MasterInfo {
 
 	master := new(proto.MasterInfo)

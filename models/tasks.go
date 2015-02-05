@@ -1,12 +1,15 @@
 package models
 
-import "github.com/silenteh/gantryos/core/proto"
+import (
+	"code.google.com/p/go-uuid/uuid"
+	"github.com/silenteh/gantryos/core/proto"
+)
 
-type Task struct {
+type task struct {
 	Id        string
 	Name      string
 	Version   string
-	Slave     Slave
+	Slave     slave
 	Resources resources  // resources required by the task
 	Command   *command   // this is in case we want to execute a single exec
 	Container *container // this is the definition of the container properties
@@ -14,7 +17,22 @@ type Task struct {
 	Labels    labels
 }
 
-func (t *Task) ToProtoBuf() *proto.TaskInfo {
+func NewTask(name, version string, s slave, res resources, cmd command, cont container, disc discovery, lbls labels) *task {
+	t := new(task)
+	t.Id = uuid.NewRandom().String()
+	t.Name = name
+	t.Version = version
+	t.Slave = s
+	t.Resources = res
+	t.Command = &cmd
+	t.Container = &cont
+	t.Discovery = &disc
+	t.Labels = lbls
+
+	return t
+}
+
+func (t *task) ToProtoBuf() *proto.TaskInfo {
 
 	taskInfo := new(proto.TaskInfo)
 	taskInfo.TaskId = &t.Id

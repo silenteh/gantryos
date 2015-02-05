@@ -5,7 +5,7 @@ import (
 	"github.com/silenteh/gantryos/core/proto"
 )
 
-type Slave struct {
+type slave struct {
 	Id         string
 	Ip         string
 	Port       int
@@ -14,7 +14,21 @@ type Slave struct {
 	Checkpoint bool
 }
 
-func (s *Slave) ToProtoBuf() *proto.SlaveInfo {
+func NewSlave(id, ip, hostname string, port int, checkpoint bool, res resources) *slave {
+
+	slave := new(slave)
+	slave.Id = id
+	slave.Ip = ip
+	slave.Hostname = hostname
+	slave.Port = port
+	slave.Checkpoint = checkpoint
+	slave.Resources = res
+
+	return slave
+
+}
+
+func (s *slave) ToProtoBuf() *proto.SlaveInfo {
 
 	slave := new(proto.SlaveInfo)
 	slave.Id = &s.Id

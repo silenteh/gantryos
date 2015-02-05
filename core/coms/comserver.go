@@ -1,25 +1,25 @@
 package coms
 
 import (
+	"bufio"
+	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
-
-	"bufio"
 	"io/ioutil"
 	"net"
 )
 
 type gantryTCPServer struct {
-	RemoteAddr string
-	RemotePort string
-	conn       *net.TCPListener
+	LocalAddr string
+	LocalPort string
+	conn      *net.TCPListener
 }
 
 type gantryUDPServer struct {
-	RemoteAddr string
-	RemotePort string
-	conn       *net.UDPConn
+	LocalAddr string
+	LocalPort string
+	conn      *net.UDPConn
 }
 
 // this is the module responsible for setting up a communication channel (TCP or UDP)
@@ -27,27 +27,28 @@ type gantryUDPServer struct {
 
 func NewGantryTCPServer(ip, port string) *gantryTCPServer {
 	return &gantryTCPServer{
-		RemoteAddr: ip,
-		RemotePort: port,
+		LocalAddr: ip,
+		LocalPort: port,
 	}
 }
 
 func NewGantryUDPServer(ip, port string) *gantryUDPServer {
 	return &gantryUDPServer{
-		RemoteAddr: ip,
-		RemotePort: port,
+		LocalAddr: ip,
+		LocalPort: port,
 	}
 }
 
 func (s *gantryTCPServer) StartTCP() {
 
-	addr, err := net.ResolveTCPAddr("ipv4", s.RemoteAddr+":"+s.RemotePort)
+	addr, err := net.ResolveTCPAddr("tcp", s.LocalAddr+":"+s.LocalPort)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	ln, err := net.ListenTCP("ipv4", addr)
+	fmt.Println("Starting to listen on", s.LocalAddr, ":", s.LocalPort)
+	ln, err := net.ListenTCP("tcp", addr)
 
 	// assign the conn to stop the server
 	s.conn = ln
@@ -55,8 +56,12 @@ func (s *gantryTCPServer) StartTCP() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	fmt.Println("OK: Listening on", s.LocalAddr, ":", s.LocalPort)
+
 	for {
 		if conn, err := ln.Accept(); err == nil {
+			fmt.Println("Got a new connection request")
 			go handleTCPConnection(conn)
 		}
 	}
@@ -96,6 +101,8 @@ func handleTCPConnection(conn net.Conn) {
 
 	data, err := ioutil.ReadAll(reader)
 
+	fmt.Println("Reading connection data")
+
 	if err != nil {
 		log.Errorln(err)
 		return
@@ -103,7 +110,8 @@ func handleTCPConnection(conn net.Conn) {
 
 	envelope := new(proto.Envelope)
 
-	protobuf.Unmarshal(data, envelope)
+	fmt.Println(protobuf.Unmarshal(data, envelope))
+
 }
 
 func handleUDPConnection(conn *net.UDPConn) {

@@ -14,11 +14,13 @@ import (
 type gantryTCPClient struct {
 	RemoteAddr string
 	RemotePort string
+	conn       *net.TCPConn
 }
 
 type gantryUDPClient struct {
 	RemoteAddr string
 	RemotePort string
+	conn       *gantryUDPConn
 }
 
 type gantryUDPConn struct {
@@ -57,6 +59,10 @@ func (client *gantryTCPClient) Connect() (*gantryTCPConn, error) {
 	}
 }
 
+func (client *gantryTCPClient) Disconnect() error {
+	return client.conn.Close()
+}
+
 func (client *gantryTCPConn) WriteMessage(data []byte) error {
 
 	//client.conn.SetWriteBuffer(512)
@@ -69,10 +75,6 @@ func (client *gantryTCPConn) WriteMessage(data []byte) error {
 
 	return nil
 
-}
-
-func (client *gantryTCPConn) Close() error {
-	return client.conn.Close()
 }
 
 // =====================================================================
