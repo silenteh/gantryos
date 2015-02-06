@@ -12,16 +12,17 @@ import (
 
 var master = models.NewMaster("1", "127.0.0.1", "localhost-master", 6060)
 var slave = models.NewSlave("1", "127.0.0.1", "localhost-slave", 6061, true, nil)
-var dataChannel = make(chan *proto.Envelope, 10)
+var dataChannel chan *proto.Envelope
 
 func TestConnect(t *testing.T) {
 
-	//gantryMasterService := masters.Start(master.Ip, strconv.Itoa(master.Port))
+	dataChannel = make(chan *proto.Envelope, 1000)
 
 	tcpServer := NewGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel)
 	tcpServer.StartTCP()
+	fmt.Println("Server started")
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	tcpClient := NewGantryTCPClient(master.Ip, strconv.Itoa(master.Port))
 
@@ -38,25 +39,22 @@ func TestConnect(t *testing.T) {
 	e := models.NewEnvelope()
 	e.Heartbeat = heartbeat
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		err = tcpClient.Write(e)
 		if err != nil {
-			tcpServer.Stop()
-			fmt.Println(tcpClient.Disconnect())
-			t.Fatal(err)
+			fmt.Println(i)
+			t.Error(err)
 		}
-		fmt.Println("Write:", i)
 	}
-
-	fmt.Println("Message written")
 
 	data := <-dataChannel
 
-	fmt.Println("Test: received data from the channel")
+	fmt.Println("Client received data from the channel")
 
 	switch {
 	case data.Heartbeat != nil:
-		fmt.Println("HEARTBEAT RECEIVED !")
+		fmt.Println("Server Heartbeat proto message received")
+		fmt.Println(data.Heartbeat.GetSlave().GetHostname())
 		break
 	default:
 		tcpClient.Disconnect()
@@ -67,6 +65,7 @@ func TestConnect(t *testing.T) {
 
 	tcpClient.Disconnect()
 	tcpServer.Stop()
+	close(dataChannel)
 	fmt.Println("Writing data to TCP server succeeded")
 }
 

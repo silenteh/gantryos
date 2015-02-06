@@ -2,12 +2,12 @@ package coms
 
 import (
 	"bufio"
-	"bytes"
+	//"bytes"
 	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
-	//"io"
+	"io"
 	//"io/ioutil"
 	"net"
 )
@@ -90,7 +90,6 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 	var err error
 
 	defer conn.Close()
-	var buffer bytes.Buffer
 	reader := bufio.NewReader(conn)
 	//writer := bufio.NewWriter(&buffer)
 
@@ -100,9 +99,12 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 	//fmt.Println("Server reading data - 1")
 
-	data, err := reader.Peek(totalSize)
-
-	_, err = buffer.Write(data)
+	buffer := make([]byte, totalSize)
+	totalRead, err := io.ReadFull(reader, buffer)
+	if err != nil || totalRead != totalSize {
+		fmt.Println("Error reading data")
+	}
+	//_, err = buffer.Write(data)
 
 	//data, err := conn(reader.)
 	//fmt.Println("Server reading data - 2")
@@ -114,7 +116,7 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 	envelope := new(proto.Envelope)
 
-	err = protobuf.Unmarshal(buffer.Bytes(), envelope)
+	err = protobuf.Unmarshal(buffer, envelope)
 	if err != nil {
 		fmt.Println("Failed to parse client sent data")
 		log.Errorln("Failed to parse client sent data:", err)

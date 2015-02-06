@@ -54,9 +54,12 @@ func (client *gantryTCPClient) Connect() error {
 	if tcpConn, err := net.DialTCP("tcp4", nil, addr); err != nil { //.DialUDP("udp", nil, addr); err != nil {
 		return err
 	} else {
-		tcpConn.SetWriteBuffer(1024)
-		tcpConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		tcpConn.SetNoDelay(true)
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetKeepAlivePeriod(5 * time.Second)
+		tcpConn.SetLinger(5)
+		tcpConn.SetWriteDeadline(time.Now().UTC().Add(60 * time.Second))
+
 		client.conn = tcpConn
 		return nil
 	}
@@ -68,15 +71,12 @@ func (client *gantryTCPClient) Disconnect() error {
 
 func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
 
-	//fmt.Println(envelope.String())
-
 	data, err := protobuf.Marshal(envelope)
 	if err != nil {
 		return err
 	}
 
 	dataSize := len(data)
-	//fmt.Println("Total size:", dataSize)
 
 	data = append([]byte{byte(dataSize)}, data...)
 
