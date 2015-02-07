@@ -18,7 +18,6 @@ const (
 func detectOS() string {
 	if utils.FileExists(`/usr/bin/uname`) {
 		out := utils.ExecCommand(true, "uname")
-		fmt.Println(out)
 		ostype := strings.ToLower(out)
 
 		switch ostype {
@@ -30,6 +29,11 @@ func detectOS() string {
 			return UNKNOWN
 		}
 	}
+
+	if utils.FileExists("/usr/bin/lsb_release") {
+		return LINUX
+	}
+
 	return UNKNOWN
 }
 
