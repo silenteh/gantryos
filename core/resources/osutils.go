@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
@@ -17,6 +18,7 @@ const (
 func detectOS() string {
 	if utils.FileExists(`/usr/bin/uname`) {
 		out := utils.ExecCommand(true, "uname")
+		fmt.Println(out)
 		ostype := strings.ToLower(out)
 
 		switch ostype {
