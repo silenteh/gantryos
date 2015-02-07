@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
