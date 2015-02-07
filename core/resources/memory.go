@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"fmt"
+	//"fmt"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/utils"
 	//"strings"
@@ -29,7 +29,6 @@ func totalRam() float64 {
 		break
 	case LINUX:
 		output := utils.ExecCommand(false, "cat", "/proc/meminfo") // linux
-		fmt.Println(output)
 		data := utils.ParseOutputCommand(output)
 
 		m, err := utils.CommandOutputToMap(data, 0, 1)
@@ -40,7 +39,7 @@ func totalRam() float64 {
 		availableRam = convertKiloBytesToGB(m["MemTotal"])
 		break
 	default:
-		fmt.Println("OS not recognized:", detectOS())
+		log.Errorln("OS not recognized while checking the total available ram - OS type:", detectOS())
 	}
 	return availableRam
 }

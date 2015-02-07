@@ -15,7 +15,7 @@ const (
 // TODO
 // make sure the command uname exists (windows for example)
 func detectOS() string {
-	if utils.FileExists(`/usr/bin/uname`) {
+	if utils.FileExists(`/usr/bin/uname`) || utils.FileExists(`/usr/sbin/uname`) {
 		out := utils.ExecCommand(true, "uname")
 		ostype := strings.ToLower(out)
 

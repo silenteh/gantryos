@@ -5,7 +5,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/coms"
 	"github.com/silenteh/gantryos/core/proto"
-	"github.com/silenteh/gantryos/models"
+	//"github.com/silenteh/gantryos/models"
 )
 
 var envelopeChannel = make(chan *proto.Envelope, 1024)
@@ -53,5 +53,5 @@ func Stop() {
 
 func initSlave() {
 
-	slave := models.NewSlave(id, ip, hostname, port, checkpoint, res)
+	//slave := models.NewSlave(id, ip, hostname, port, checkpoint, res)
 }
