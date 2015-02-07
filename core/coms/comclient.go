@@ -2,15 +2,13 @@ package coms
 
 import (
 	"errors"
-	//"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	"github.com/silenteh/gantryos/core/proto"
-	//"io"
 	"net"
 	"time"
 )
 
-type gantryTCPClient struct {
+type GantryTCPClient struct {
 	RemoteAddr string
 	RemotePort string
 	conn       *net.TCPConn
@@ -29,8 +27,8 @@ type gantryTCPConn struct {
 	conn *net.TCPConn
 }
 
-func NewGantryTCPClient(ip, port string) *gantryTCPClient {
-	return &gantryTCPClient{
+func NewGantryTCPClient(ip, port string) *GantryTCPClient {
+	return &GantryTCPClient{
 		RemoteAddr: ip,
 		RemotePort: port,
 	}
@@ -43,7 +41,7 @@ func NewGantryUDPClient(ip, port string) *gantryUDPClient {
 	}
 }
 
-func (client *gantryTCPClient) Connect() error {
+func (client *GantryTCPClient) Connect() error {
 
 	addr, err := net.ResolveTCPAddr("tcp4", client.RemoteAddr+":"+client.RemotePort)
 
@@ -65,11 +63,11 @@ func (client *gantryTCPClient) Connect() error {
 	}
 }
 
-func (client *gantryTCPClient) Disconnect() error {
+func (client *GantryTCPClient) Disconnect() error {
 	return client.conn.Close()
 }
 
-func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
+func (client *GantryTCPClient) Write(envelope *proto.Envelope) error {
 
 	data, err := protobuf.Marshal(envelope)
 	if err != nil {

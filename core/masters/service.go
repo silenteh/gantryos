@@ -12,8 +12,8 @@ var master *coms.GantryTCPServer
 
 func Start(ip, port string) {
 
-	Master = coms.NewGantryTCPServer(ip, port, envelopeChannel)
-	Master.StartTCP()
+	master = coms.NewGantryTCPServer(ip, port, envelopeChannel)
+	master.StartTCP()
 
 	// start the listener to detect the client requests
 	go listener()
@@ -22,9 +22,9 @@ func Start(ip, port string) {
 
 func Stop() {
 
-	if Master != nil {
+	if master != nil {
 		close(envelopeChannel)
-		Master.Stop()
+		master.Stop()
 	}
 	log.Infoln("GantryOS master stopped.")
 

@@ -2,13 +2,11 @@ package coms
 
 import (
 	"bufio"
-	//"bytes"
 	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
 	"io"
-	//"io/ioutil"
 	"net"
 )
 
