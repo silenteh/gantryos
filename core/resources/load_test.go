@@ -7,8 +7,8 @@ import (
 
 func TestLoadAverage(t *testing.T) {
 	load := loadAverage()
-	if load.Minute == 0 {
-		t.Fatal("Error detecting the operating system LOAD")
+	if load.Minute == -1 {
+		t.Fatalf("Error detecting the operating system LOAD on %s", detectOS())
 	}
 
 	fmt.Println("loadAverage: OK")

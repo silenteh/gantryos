@@ -12,8 +12,18 @@ type load struct {
 	Ts       int32
 }
 
+func newLoad() load {
+	return load{
+		Minute:   -1,
+		Minute5:  -1,
+		Minute15: -1,
+		Ts:       utils.UTCTimeStamp(),
+	}
+
+}
+
 func loadAverage() load {
-	load := load{}
+	load := newLoad()
 	detectedOs := detectOS()
 	switch detectedOs {
 	case BSD:
