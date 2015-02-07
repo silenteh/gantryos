@@ -8,7 +8,7 @@ import (
 func TestTotalRam(t *testing.T) {
 	ram := totalRam()
 
-	if ram <= 1 {
+	if ram <= 0 {
 		t.Fatalf("Error calculating the total ram on %s", detectOS())
 	}
 

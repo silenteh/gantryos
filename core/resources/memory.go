@@ -1,10 +1,8 @@
 package resources
 
 import (
-	//"fmt"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/utils"
-	//"strings"
 )
 
 type memoryUsage struct {
