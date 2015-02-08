@@ -7,12 +7,12 @@ import (
 )
 
 type diskLayoutInfo struct {
-	Device    string  // /dev/sda1
-	Size      float64 // in GB
-	Used      float64 // in GB
-	Available float64 // in GB
-	Usage     string  // this is the percentageof usage
-	Mounted   string  // like /
+	Device    string // /dev/sda1
+	Size      string // in GB
+	Used      string // in GB
+	Available string // in GB
+	Usage     string // this is the percentageof usage
+	Mounted   string // like /
 	Ts        int32
 }
 
@@ -39,7 +39,6 @@ func layout() map[string]diskLayoutInfo {
 	case BSD:
 		dfResult := utils.ExecCommand(false, "df", "-h")
 		dfResult = strings.Replace(dfResult, "map ", "", -1)
-		dfResult = removeUnits(dfResult)
 
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
 		dataMapArray, err := utils.CommandOutputToMapArray(output, 8)
@@ -52,9 +51,9 @@ func layout() map[string]diskLayoutInfo {
 			if size >= 9 {
 				l := diskLayoutInfo{}
 				l.Device = element[0]
-				l.Size = utils.StringToFloat64(element[1], false)
-				l.Used = utils.StringToFloat64(element[2], false)
-				l.Available = utils.StringToFloat64(element[3], false)
+				l.Size = element[1]
+				l.Used = element[2]
+				l.Available = element[3]
 				l.Usage = element[4]
 				l.Mounted = element[8]
 				l.Ts = utils.UTCTimeStamp()
@@ -80,9 +79,9 @@ func layout() map[string]diskLayoutInfo {
 			if size >= 5 {
 				l := diskLayoutInfo{}
 				l.Device = element[0]
-				l.Size = utils.StringToFloat64(element[1], false)
-				l.Used = utils.StringToFloat64(element[2], false)
-				l.Available = utils.StringToFloat64(element[3], false)
+				l.Size = element[1]
+				l.Used = element[2]
+				l.Available = element[3]
 				l.Usage = element[4]
 				l.Mounted = element[5]
 				l.Ts = utils.UTCTimeStamp()
@@ -182,15 +181,4 @@ func ioinfo() []diskStat {
 
 	return iostats
 
-}
-
-func removeUnits(content string) string {
-	content = strings.Replace(content, "Gi", "", -1)
-	content = strings.Replace(content, "G", "", -1)
-	content = strings.Replace(content, "Mi", "", -1)
-	content = strings.Replace(content, "M", "", -1)
-	content = strings.Replace(content, "Ki", "", -1)
-	content = strings.Replace(content, "K", "", -1)
-	content = strings.Replace(content, "%", "", -1)
-	return content
 }
