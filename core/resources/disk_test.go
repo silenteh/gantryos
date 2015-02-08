@@ -12,7 +12,7 @@ func TestLayout(t *testing.T) {
 		t.Fatal("Error getting the disk layout")
 	}
 
-	if disk["/"].Size == "0" {
+	if disk["/"].Size == 0 {
 		t.Fatal("Error getting the disk layout")
 	}
 

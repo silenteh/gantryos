@@ -1,16 +1,15 @@
 package resources
 
 import (
-	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
 
 type diskLayoutInfo struct {
 	Device    string // /dev/sda1
-	Size      string // in GB
-	Used      string // in GB
-	Available string // in GB
+	Size      uint64 // in KB
+	Used      uint64 // in KB
+	Available uint64 // in KB
 	Usage     string // this is the percentageof usage
 	Mounted   string // like /
 	Ts        int32
@@ -37,7 +36,7 @@ func layout() map[string]diskLayoutInfo {
 	detectedOs := detectOS()
 	switch detectedOs {
 	case BSD:
-		dfResult := utils.ExecCommand(false, "df", "-h")
+		dfResult := utils.ExecCommand(false, "df", "-k")
 		dfResult = strings.Replace(dfResult, "map ", "", -1)
 
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
@@ -51,9 +50,9 @@ func layout() map[string]diskLayoutInfo {
 			if size >= 9 {
 				l := diskLayoutInfo{}
 				l.Device = element[0]
-				l.Size = element[1]
-				l.Used = element[2]
-				l.Available = element[3]
+				l.Size = utils.StringToUINT64(element[1], false)
+				l.Used = utils.StringToUINT64(element[2], false)
+				l.Available = utils.StringToUINT64(element[3], false)
 				l.Usage = element[4]
 				l.Mounted = element[8]
 				l.Ts = utils.UTCTimeStamp()
@@ -64,9 +63,9 @@ func layout() map[string]diskLayoutInfo {
 
 		break
 	case LINUX:
-		dfResult := utils.ExecCommand(false, "df", "-h")
+		dfResult := utils.ExecCommand(false, "df", "-k")
 
-		fmt.Println(dfResult)
+		//fmt.Println(dfResult)
 
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
 		dataMapArray, err := utils.CommandOutputToMapArray(output, 5)
@@ -79,9 +78,9 @@ func layout() map[string]diskLayoutInfo {
 			if size >= 5 {
 				l := diskLayoutInfo{}
 				l.Device = element[0]
-				l.Size = element[1]
-				l.Used = element[2]
-				l.Available = element[3]
+				l.Size = utils.StringToUINT64(element[1], false)
+				l.Used = utils.StringToUINT64(element[2], false)
+				l.Available = utils.StringToUINT64(element[3], false)
 				l.Usage = element[4]
 				l.Mounted = element[5]
 				l.Ts = utils.UTCTimeStamp()

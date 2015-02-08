@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
@@ -78,7 +77,7 @@ func netStats() map[string]netStat {
 	case LINUX:
 		output := utils.ExecCommand(false, "cat", "/proc/net/dev")
 
-		fmt.Println(output)
+		//fmt.Println(output)
 
 		itemsArray := utils.ParseOutputCommandWithHeader(output, 2)
 
