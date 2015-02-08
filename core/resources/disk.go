@@ -66,7 +66,9 @@ func layout() map[string]diskLayoutInfo {
 		break
 	case LINUX:
 		dfResult := utils.ExecCommand(false, "df", "-h")
+
 		fmt.Println(dfResult)
+
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
 		dataMapArray, err := utils.CommandOutputToMapArray(output, 5)
 		if err != nil {
@@ -183,14 +185,12 @@ func ioinfo() []diskStat {
 }
 
 func removeUnits(content string) string {
-	content = strings.ToLower(content)
-	content = strings.Replace(content, "gi", "", -1)
-	content = strings.Replace(content, "gb", "", -1)
-	content = strings.Replace(content, "mi", "", -1)
-	content = strings.Replace(content, "mb", "", -1)
-	content = strings.Replace(content, "ki", "", -1)
-	content = strings.Replace(content, "kb", "", -1)
-	content = strings.Replace(content, "bi", "", -1)
+	content = strings.Replace(content, "Gi", "", -1)
+	content = strings.Replace(content, "G", "", -1)
+	content = strings.Replace(content, "Mi", "", -1)
+	content = strings.Replace(content, "M", "", -1)
+	content = strings.Replace(content, "Ki", "", -1)
+	content = strings.Replace(content, "K", "", -1)
 	content = strings.Replace(content, "%", "", -1)
 	return content
 }
