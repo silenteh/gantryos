@@ -99,3 +99,26 @@ Inactive:         132184 kB
 	fmt.Println("CommandOutputToMap: SUCCESS")
 
 }
+
+func TestCommandOutputToMapArray(t *testing.T) {
+	example := `Filesystem                          Size   Used  Avail Capacity  iused     ifree %iused  Mounted on
+/dev/disk1                         465Gi   74Gi  391Gi    16% 19338597 102499001   16%   /
+devfs                              183Ki  183Ki    0Bi   100%      634         0  100%   /dev
+map -hosts                           0Bi    0Bi    0Bi   100%        0         0  100%   /net
+map auto_home                        0Bi    0Bi    0Bi   100%        0         0  100%   /home
+localhost:/JUBRlh2axvSNcf66Md3uWc  465Gi  465Gi    0Bi   100%        0         0  100%   /Volumes/MobileBackups
+	`
+
+	data := ParseOutputCommandWithHeader(example, 1)
+
+	if dataMap, err := CommandOutputToMapArray(data, 8); err != nil {
+		t.Fatal(err)
+	} else {
+		if dataMap["/"][0] != "/dev/disk1" {
+			t.Fatal("Error converting the command output")
+		}
+	}
+
+	fmt.Println("CommandOutputToMap: SUCCESS")
+
+}

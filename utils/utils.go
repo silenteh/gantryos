@@ -3,9 +3,9 @@ package utils
 import (
 	"bytes"
 	"errors"
+	log "github.com/golang/glog"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -31,7 +31,7 @@ func ExecCommand(stripNewLines bool, cmd string, args ...string) string {
 
 	out, err := exec.Command(cmd, args...).CombinedOutput()
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	var finalString string
@@ -58,7 +58,7 @@ func ReadFile(fileName string) []byte {
 	f, err := os.Open(fileName)
 	//defer f.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	} else {
 		io.Copy(buf, f)
 		f.Close()
@@ -80,7 +80,7 @@ func WriteFile(fileName string, data []byte, permission os.FileMode) error {
 func StringToFloat64(value string, onErrorOne bool) float64 {
 	i, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 		if onErrorOne {
 			return float64(1)
 		}
@@ -205,6 +205,20 @@ func CommandOutputToMap(data [][]string, labelPosition, valuePosition int) (map[
 		label := strings.Replace(line[labelPosition], ":", "", -1)
 
 		mapData[label] = StringToUINT64(line[valuePosition], false)
+	}
+
+	return mapData, nil
+}
+
+func CommandOutputToMapArray(data [][]string, labelPosition int) (map[string][]string, error) {
+
+	mapData := make(map[string][]string)
+
+	for _, line := range data {
+
+		label := strings.Replace(line[labelPosition], ":", "", -1)
+
+		mapData[label] = line
 	}
 
 	return mapData, nil
