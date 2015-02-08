@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
@@ -65,7 +66,7 @@ func layout() map[string]diskLayoutInfo {
 		break
 	case LINUX:
 		dfResult := utils.ExecCommand(false, "df", "-h")
-
+		fmt.Println(dfResult)
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
 		dataMapArray, err := utils.CommandOutputToMapArray(output, 5)
 		if err != nil {
@@ -141,6 +142,7 @@ func ioinfo() []diskStat {
 		break
 	case LINUX:
 		dfResult := utils.ExecCommand(false, "cat", "/proc/diskstats")
+
 		output := utils.ParseOutputCommandWithHeader(dfResult, 1)
 		dataMapArray, err := utils.CommandOutputToMapArray(output, 8)
 		if err != nil {

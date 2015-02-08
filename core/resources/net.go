@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/silenteh/gantryos/utils"
 	"strings"
 )
@@ -76,9 +77,10 @@ func netStats() map[string]netStat {
 		break
 	case LINUX:
 		output := utils.ExecCommand(false, "cat", "/proc/net/dev")
-		dfResult := string(output)
 
-		itemsArray := utils.ParseOutputCommandWithHeader(dfResult, 2)
+		fmt.Println(output)
+
+		itemsArray := utils.ParseOutputCommandWithHeader(output, 2)
 
 		for _, element := range itemsArray {
 
