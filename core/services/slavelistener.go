@@ -1,4 +1,4 @@
-package coms
+package services
 
 import (
 	"fmt"
@@ -6,16 +6,12 @@ import (
 	"github.com/silenteh/gantryos/core/proto"
 )
 
-// this listener received the proto.Envelope data
-// the it detects which sub-field is available
-// and therefore which request the client is doing
-// this method blocks
-func initListener(envelopeChannel chan *proto.Envelope) {
-	go listener(envelopeChannel)
-}
-
-func listener(envelopeChannel chan *proto.Envelope) {
+func slaveListener(envelopeChannel chan *proto.Envelope) {
 	for {
+
+		// this blocks until a message is available in the queue
+		// message processing is sequential
+		// all messages are idempotent
 		data := <-envelopeChannel
 
 		switch {

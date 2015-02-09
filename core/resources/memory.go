@@ -17,6 +17,10 @@ type memoryUsage struct {
 	Ts            int32
 }
 
+func GetTotalRam() float64 {
+	return totalRam()
+}
+
 func totalRam() float64 {
 	detectedOs := detectOS()
 	availableRam := float64(0)

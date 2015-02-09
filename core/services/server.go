@@ -1,4 +1,4 @@
-package coms
+package services
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"net"
 )
 
-type GantryTCPServer struct {
+type gantryTCPServer struct {
 	LocalAddr       string
 	LocalPort       string
 	envelopeChannel chan *proto.Envelope // from this channel we can read all the data coming from the clients
@@ -26,25 +26,25 @@ type gantryUDPServer struct {
 // this is the module responsible for setting up a communication channel (TCP or UDP)
 // where the data (protobuf, or JSON) can be exchanged
 
-func NewGantryTCPServer(ip, port string, dataChannel chan *proto.Envelope) *GantryTCPServer {
-	return &GantryTCPServer{
+func newGantryTCPServer(ip, port string, dataChannel chan *proto.Envelope) *gantryTCPServer {
+	return &gantryTCPServer{
 		LocalAddr:       ip,
 		LocalPort:       port,
 		envelopeChannel: dataChannel,
 	}
 }
 
-func NewGantryUDPServer(ip, port string) *gantryUDPServer {
+func newGantryUDPServer(ip, port string) *gantryUDPServer {
 	return &gantryUDPServer{
 		LocalAddr: ip,
 		LocalPort: port,
 	}
 }
 
-func (s *GantryTCPServer) StartTCP() {
+func (s *gantryTCPServer) StartTCP() {
 
 	// the for loop blocks the current thread therefore starts a differen one
-	go func(server *GantryTCPServer) {
+	go func(server *gantryTCPServer) {
 
 		addr, err := net.ResolveTCPAddr("tcp", s.LocalAddr+":"+s.LocalPort)
 
@@ -73,7 +73,7 @@ func (s *GantryTCPServer) StartTCP() {
 
 }
 
-func (s *GantryTCPServer) Stop() error {
+func (s *gantryTCPServer) Stop() error {
 	return s.conn.Close()
 }
 
@@ -130,7 +130,7 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 //==============================================================================================================
 
-func StartUDP(ip string, port string) {
+func startUDP(ip string, port string) {
 
 	addr, err := net.ResolveUDPAddr("udp4", ip+":"+port)
 

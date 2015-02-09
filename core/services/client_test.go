@@ -1,8 +1,7 @@
-package coms
+package services
 
 import (
 	"fmt"
-	//protobuf "github.com/gogo/protobuf/proto"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/models"
 	"strconv"
@@ -11,20 +10,20 @@ import (
 )
 
 var master = models.NewMaster("1", "127.0.0.1", "localhost-master", 6060)
-var slave = models.NewSlave("1", "127.0.0.1", "localhost-slave", 6061, true, nil)
+var slave = models.NewSlave("1", "127.0.0.1", "localhost-slave", 6061, true, false)
 var dataChannel chan *proto.Envelope
 
 func TestConnect(t *testing.T) {
 
 	dataChannel = make(chan *proto.Envelope, 1000)
 
-	tcpServer := NewGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel)
+	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel)
 	tcpServer.StartTCP()
 	fmt.Println("Server started")
 
 	time.Sleep(1 * time.Second)
 
-	tcpClient := NewGantryTCPClient(master.Ip, strconv.Itoa(master.Port))
+	tcpClient := newGantryTCPClient(master.Ip, strconv.Itoa(master.Port))
 
 	err := tcpClient.Connect()
 	if err != nil {
@@ -67,8 +66,4 @@ func TestConnect(t *testing.T) {
 	tcpServer.Stop()
 	close(dataChannel)
 	fmt.Println("Writing data to TCP server succeeded")
-}
-
-func startTcpTestServer() {
-
 }

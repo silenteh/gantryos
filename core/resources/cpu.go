@@ -2,6 +2,6 @@ package resources
 
 import "runtime"
 
-func GetTotalCPUsCount() int {
-	return runtime.NumCPU()
+func GetTotalCPUsCount() float64 {
+	return float64(runtime.NumCPU())
 }

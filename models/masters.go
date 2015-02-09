@@ -3,17 +3,18 @@ package models
 import (
 	protobuf "github.com/gogo/protobuf/proto"
 	"github.com/silenteh/gantryos/core/proto"
+	"strconv"
 )
 
-type master struct {
+type Master struct {
 	Id       string
 	Ip       string
 	Port     int
 	Hostname string
 }
 
-func NewMaster(id, ip, hostname string, port int) *master {
-	m := new(master)
+func NewMaster(id, ip, hostname string, port int) *Master {
+	m := new(Master)
 	m.Id = id
 	m.Ip = ip
 	m.Hostname = hostname
@@ -21,7 +22,7 @@ func NewMaster(id, ip, hostname string, port int) *master {
 	return m
 }
 
-func (m *master) ToProtoBuf() *proto.MasterInfo {
+func (m *Master) ToProtoBuf() *proto.MasterInfo {
 
 	master := new(proto.MasterInfo)
 	master.Id = &m.Id
@@ -31,4 +32,8 @@ func (m *master) ToProtoBuf() *proto.MasterInfo {
 
 	return master
 
+}
+
+func (m *Master) GetPortString() string {
+	return strconv.Itoa(m.Port)
 }

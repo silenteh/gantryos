@@ -3,32 +3,47 @@ package models
 import (
 	protobuf "github.com/gogo/protobuf/proto"
 	"github.com/silenteh/gantryos/core/proto"
+	sysresources "github.com/silenteh/gantryos/core/resources"
+	"strconv"
 )
 
-type slave struct {
-	Id         string
-	Ip         string
-	Port       int
-	Hostname   string
-	Resources  resources // resources available on the slave
-	Checkpoint bool
+type Slave struct {
+	Id              string
+	Ip              string
+	Port            int
+	Hostname        string
+	Resources       resources // resources available on the slave
+	Checkpoint      bool
+	NewRegistration bool
 }
 
-func NewSlave(id, ip, hostname string, port int, checkpoint bool, res resources) *slave {
+func NewSlave(id, ip, hostname string, port int, checkpoint, newRegistration bool) *Slave {
 
-	slave := new(slave)
+	slave := new(Slave)
 	slave.Id = id
 	slave.Ip = ip
 	slave.Hostname = hostname
 	slave.Port = port
 	slave.Checkpoint = checkpoint
+	slave.NewRegistration = newRegistration
+
+	// get the resources
+	cpu := NewCPUResource(sysresources.GetTotalCPUsCount())
+	mem := NewMEMResource(sysresources.GetTotalRam())
+	ports := NewPortsResource(58000, 59000)
+
+	res := make([]*resource, 3)
+	res[0] = cpu
+	res[1] = mem
+	res[2] = ports
+
 	slave.Resources = res
+	// ===================================
 
 	return slave
-
 }
 
-func (s *slave) ToProtoBuf() *proto.SlaveInfo {
+func (s *Slave) ToProtoBuf() *proto.SlaveInfo {
 
 	slave := new(proto.SlaveInfo)
 	slave.Id = &s.Id
@@ -39,4 +54,15 @@ func (s *slave) ToProtoBuf() *proto.SlaveInfo {
 	slave.Resources = s.Resources.ToProtoBuf()
 
 	return slave
+}
+
+func (s *Slave) RegisterSlaveMessage() *proto.RegisterSlaveMessage {
+
+	m := new(proto.RegisterSlaveMessage)
+	m.Slave = s.ToProtoBuf()
+	return m
+}
+
+func (s *Slave) GetPortString() string {
+	return strconv.Itoa(s.Port)
 }

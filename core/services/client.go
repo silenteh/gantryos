@@ -1,4 +1,4 @@
-package coms
+package services
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type GantryTCPClient struct {
+type gantryTCPClient struct {
 	RemoteAddr string
 	RemotePort string
 	conn       *net.TCPConn
@@ -27,21 +27,21 @@ type gantryTCPConn struct {
 	conn *net.TCPConn
 }
 
-func NewGantryTCPClient(ip, port string) *GantryTCPClient {
-	return &GantryTCPClient{
+func newGantryTCPClient(ip, port string) *gantryTCPClient {
+	return &gantryTCPClient{
 		RemoteAddr: ip,
 		RemotePort: port,
 	}
 }
 
-func NewGantryUDPClient(ip, port string) *gantryUDPClient {
+func newGantryUDPClient(ip, port string) *gantryUDPClient {
 	return &gantryUDPClient{
 		RemoteAddr: ip,
 		RemotePort: port,
 	}
 }
 
-func (client *GantryTCPClient) Connect() error {
+func (client *gantryTCPClient) Connect() error {
 
 	addr, err := net.ResolveTCPAddr("tcp4", client.RemoteAddr+":"+client.RemotePort)
 
@@ -63,11 +63,11 @@ func (client *GantryTCPClient) Connect() error {
 	}
 }
 
-func (client *GantryTCPClient) Disconnect() error {
+func (client *gantryTCPClient) Disconnect() error {
 	return client.conn.Close()
 }
 
-func (client *GantryTCPClient) Write(envelope *proto.Envelope) error {
+func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
 
 	data, err := protobuf.Marshal(envelope)
 	if err != nil {

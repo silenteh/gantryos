@@ -9,7 +9,7 @@ type task struct {
 	Id        string
 	Name      string
 	Version   string
-	Slave     slave
+	Slave     Slave
 	Resources resources  // resources required by the task
 	Command   *command   // this is in case we want to execute a single exec
 	Container *container // this is the definition of the container properties
@@ -17,7 +17,7 @@ type task struct {
 	Labels    labels
 }
 
-func NewTask(name, version string, s slave, res resources, cmd command, cont container, disc discovery, lbls labels) *task {
+func NewTask(name, version string, s Slave, res resources, cmd command, cont container, disc discovery, lbls labels) *task {
 	t := new(task)
 	t.Id = uuid.NewRandom().String()
 	t.Name = name
