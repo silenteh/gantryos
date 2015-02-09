@@ -5,3 +5,4 @@ logs/*
 Godeps/_workspace
 Godeps/_workspace/
 Godeps/_workspace/*
+slave.json
