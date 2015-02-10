@@ -11,7 +11,7 @@ import (
 
 var slaveInfo *models.Slave
 
-func init() {
+func initSlave() {
 	// Port
 	port := 6061
 	if config.GantryOSConfig.Slave.Port != 0 {
@@ -34,6 +34,14 @@ func init() {
 	slaveId := config.GantryOSSlaveId
 
 	slaveInfo = models.NewSlave(slaveId.Id, ip, hostname, port, config.GantryOSConfig.Slave.Checkpoint, slaveId.Registered)
+
+	// init the slave
+	// it needs to send its information to the master
+	if slaveId.Registered {
+		reRegisterMaster()
+	} else {
+		joinMaster()
+	}
 }
 
 // this method is used for registering with the master
@@ -46,7 +54,10 @@ func joinMaster() {
 
 // this method is used to re-register with the master
 func reRegisterMaster() {
-
+	m := slaveInfo.ReRegisterSlaveMessage()
+	e := models.NewEnvelope()
+	e.ReRegisterSlave = m
+	slaveSendMessage(e)
 }
 
 // this method is used to disconect from the master

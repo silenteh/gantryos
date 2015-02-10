@@ -63,6 +63,13 @@ func (s *Slave) RegisterSlaveMessage() *proto.RegisterSlaveMessage {
 	return m
 }
 
+func (s *Slave) ReRegisterSlaveMessage() *proto.ReregisterSlaveMessage {
+
+	m := new(proto.ReregisterSlaveMessage)
+	m.Slave = s.ToProtoBuf()
+	return m
+}
+
 func (s *Slave) GetPortString() string {
 	return strconv.Itoa(s.Port)
 }

@@ -2,7 +2,6 @@ package services
 
 import (
 	"bufio"
-	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
@@ -10,11 +9,14 @@ import (
 	"net"
 )
 
+var totalSlaveConnections = 1
+
 type gantryTCPServer struct {
-	LocalAddr       string
-	LocalPort       string
-	envelopeChannel chan *proto.Envelope // from this channel we can read all the data coming from the clients
-	conn            *net.TCPListener
+	LocalAddr     string
+	LocalPort     string
+	readerChannel chan *proto.Envelope // from this channel we can read all the data coming from the clients
+	writerChannel chan *proto.Envelope // from this channel we can write all the data to the clients
+	conn          *net.TCPListener
 }
 
 type gantryUDPServer struct {
@@ -26,11 +28,12 @@ type gantryUDPServer struct {
 // this is the module responsible for setting up a communication channel (TCP or UDP)
 // where the data (protobuf, or JSON) can be exchanged
 
-func newGantryTCPServer(ip, port string, dataChannel chan *proto.Envelope) *gantryTCPServer {
+func newGantryTCPServer(ip, port string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) *gantryTCPServer {
 	return &gantryTCPServer{
-		LocalAddr:       ip,
-		LocalPort:       port,
-		envelopeChannel: dataChannel,
+		LocalAddr:     ip,
+		LocalPort:     port,
+		readerChannel: readerChannel,
+		writerChannel: writerChannel,
 	}
 }
 
@@ -65,7 +68,14 @@ func (s *gantryTCPServer) StartTCP() {
 
 		for {
 			if conn, err := ln.AcceptTCP(); err == nil {
-				go handleTCPConnection(conn, s.envelopeChannel)
+				// we accept a maximum of 640000 concurrent connections
+				// each slave creates 1 connection, therefore it should be enough for handling up to 64k slaves !
+				if totalSlaveConnections < 640000 {
+					log.Infoln("Amount of slave connections:", totalSlaveConnections)
+					go handleTCPConnection(conn, s.readerChannel)
+				} else {
+					log.Errorln("Too many connections from slaves. Stopped accepting new connections.")
+				}
 			}
 		}
 
@@ -84,47 +94,40 @@ func (s *gantryUDPServer) Stop() error {
 // Handles incoming requests.
 func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
-	//fmt.Println("Server receiving data")
-	var err error
+	// new slave connection was successfully created
+	totalSlaveConnections++
 
+	// close the connection in case this exists
 	defer conn.Close()
-	reader := bufio.NewReader(conn)
-	//writer := bufio.NewWriter(&buffer)
 
-	sizeByte, err := reader.ReadByte()
-	totalSize := int(sizeByte)
-	//fmt.Println("Total size:", totalSize)
+	for {
 
-	//fmt.Println("Server reading data - 1")
+		reader := bufio.NewReader(conn)
 
-	buffer := make([]byte, totalSize)
-	totalRead, err := io.ReadFull(reader, buffer)
-	if err != nil || totalRead != totalSize {
-		fmt.Println("Error reading data")
-	}
-	//_, err = buffer.Write(data)
+		sizeByte, err := reader.ReadByte()
+		totalSize := int(sizeByte)
 
-	//data, err := conn(reader.)
-	//fmt.Println("Server reading data - 2")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	log.Errorln(err)
-	// 	return
-	// }
+		buffer := make([]byte, totalSize)
+		totalRead, err := io.ReadFull(reader, buffer)
+		if err != nil || totalRead != totalSize {
+			log.Errorln("Error reading data from socket:", err)
+			continue
+		}
 
-	envelope := new(proto.Envelope)
+		envelope := new(proto.Envelope)
 
-	err = protobuf.Unmarshal(buffer, envelope)
-	if err != nil {
-		fmt.Println("Failed to parse client sent data")
-		log.Errorln("Failed to parse client sent data:", err)
-		return
+		err = protobuf.Unmarshal(buffer, envelope)
+		if err != nil {
+			log.Errorln("Failed to parse client sent data:", err)
+			continue
+		}
+		// it's a buffered channel, therefore this method does not block (unless the channel is full)
+		// TODO: notify when the channel is full
+		dataChannel <- envelope
 	}
 
-	fmt.Println("Server: writing data to channel")
-	// it's a buffered channel, therefore this method does not block (unless the channel is full)
-	// TODO: notify when the channel is full
-	dataChannel <- envelope
+	// at this point the connection will be closed therefore decrease the counter
+	totalSlaveConnections--
 
 }
 

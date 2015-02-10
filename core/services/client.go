@@ -54,9 +54,8 @@ func (client *gantryTCPClient) Connect() error {
 	} else {
 		tcpConn.SetNoDelay(true)
 		tcpConn.SetKeepAlive(true)
-		tcpConn.SetKeepAlivePeriod(5 * time.Second)
+		tcpConn.SetKeepAlivePeriod(60 * time.Second)
 		tcpConn.SetLinger(5)
-		tcpConn.SetWriteDeadline(time.Now().UTC().Add(60 * time.Second))
 
 		client.conn = tcpConn
 		return nil

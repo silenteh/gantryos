@@ -11,26 +11,35 @@ import (
 // this method blocks
 
 func masterListener(envelopeChannel chan *proto.Envelope) {
+	//total := 0
+
 	for {
-		data := <-envelopeChannel
+		envlope := <-envelopeChannel
+
+		// dereference
+		data := *envlope
 
 		switch {
 		case data.MasterInfo != nil:
+			continue
 		case data.RegisterSlave != nil:
 			slave := data.RegisterSlave.GetSlave()
-			log.Infoln(slave.Hostname, "registered as a slave with id", slave.Id)
+			log.Infoln(slave.GetHostname(), "registered as a slave with id", slave.GetId())
+			continue
 		case data.ReRegisterSlave != nil:
 			slave := data.ReRegisterSlave.GetSlave()
-			log.Infoln(slave.Hostname, "registered as a slave with id", slave.Id)
+			log.Infoln(slave.GetHostname(), "re-registered as a slave with id", slave.GetId())
+			continue
 		case data.SlaveInfo != nil:
+			continue
 		case data.Heartbeat != nil:
 			slave := data.Heartbeat.GetSlave()
-			log.Infoln("Slave id", slave.Id, "with hostname", slave.Hostname, "sent an heartbeat.")
+			log.Infoln("Slave id", slave.GetId(), "with hostname", slave.GetHostname(), "sent an heartbeat.")
+			continue
 		default:
 			log.Errorln("Got an unknown request from the GatryOS slave")
 			continue
 		}
-
 	}
 }
 
