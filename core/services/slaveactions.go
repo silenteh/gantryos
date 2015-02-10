@@ -2,7 +2,6 @@ package services
 
 import (
 	"github.com/silenteh/gantryos/config"
-	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/resources"
 	"github.com/silenteh/gantryos/models"
 	"time"
@@ -12,10 +11,7 @@ import (
 
 var slaveInfo *models.Slave
 
-// initialize the slave actions
-// init the slave itself
-func initActions(channel chan *proto.Envelope) {
-
+func init() {
 	// Port
 	port := 6061
 	if config.GantryOSConfig.Slave.Port != 0 {
