@@ -17,7 +17,7 @@ func TestConnect(t *testing.T) {
 
 	dataChannel = make(chan *proto.Envelope, 1000)
 
-	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel)
+	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel, nil)
 	tcpServer.StartTCP()
 	fmt.Println("Server started")
 
