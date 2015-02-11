@@ -15,7 +15,7 @@ var dataChannel chan *proto.Envelope
 
 func TestConnect(t *testing.T) {
 
-	dataChannel = make(chan *proto.Envelope, 512)
+	dataChannel = make(chan *proto.Envelope, 1024)
 
 	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel, nil)
 	tcpServer.StartTCP()
@@ -38,7 +38,7 @@ func TestConnect(t *testing.T) {
 	e := models.NewEnvelope()
 	e.Heartbeat = heartbeat
 
-	for i := 0; i < 512; i++ {
+	for i := 0; i < 1024; i++ {
 		err = tcpClient.Write(e)
 		if err != nil {
 			fmt.Println(i)
@@ -64,6 +64,6 @@ func TestConnect(t *testing.T) {
 
 	tcpClient.Disconnect()
 	tcpServer.Stop()
-	close(dataChannel)
+	//close(dataChannel)
 	fmt.Println("Writing data to TCP server succeeded")
 }
