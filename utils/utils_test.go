@@ -1,6 +1,7 @@
 package utils
 
 import (
+	//"encoding/binary"
 	"fmt"
 	"testing"
 )
@@ -120,5 +121,24 @@ localhost:/JUBRlh2axvSNcf66Md3uWc  465Gi  465Gi    0Bi   100%        0         0
 	}
 
 	fmt.Println("CommandOutputToMap: SUCCESS")
+
+}
+
+func TestBytesToInt(t *testing.T) {
+	original := 64000
+
+	originalBytes := IntToBytes(original)
+
+	converted := BytesToInt(originalBytes)
+
+	if converted == 0 {
+		t.Fatal("Error converting bytes to int!")
+	}
+
+	if converted != original {
+		t.Fatal("Converted bytes do not match!")
+	}
+
+	fmt.Println("BytesToInt: OK")
 
 }

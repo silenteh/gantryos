@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "unsafe"
 )
 
 func UTCTimeStamp() int32 {
@@ -222,4 +223,23 @@ func CommandOutputToMapArray(data [][]string, labelPosition int) (map[string][]s
 	}
 
 	return mapData, nil
+}
+
+func BytesToInt(b []byte) int {
+	if len(b) != 4 {
+		return 0
+	}
+
+	//return *(*uint32)(unsafe.Pointer(&data[0]))
+	return (int(b[0]) | int(b[1])<<8 | int(b[2])<<16 | int(b[3])<<24)
+
+}
+
+func IntToBytes(num int) []byte {
+	b := make([]byte, 4)
+	for i := 0; i < 4; i++ {
+		b[i] = byte(num & 0xFF)
+		num >>= 8
+	}
+	return b
 }

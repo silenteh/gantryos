@@ -2,9 +2,11 @@ package services
 
 import (
 	"bufio"
+	//"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
+	"github.com/silenteh/gantryos/utils"
 	"io"
 	"net"
 )
@@ -104,8 +106,12 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 		reader := bufio.NewReader(conn)
 
-		sizeByte, err := reader.ReadByte()
-		totalSize := int(sizeByte)
+		// get the lenght
+		lenght := make([]byte, 4)
+
+		_, err := reader.Read(lenght)
+		totalSize := utils.BytesToInt(lenght)
+		//fmt.Println(totalSize)
 
 		buffer := make([]byte, totalSize)
 		totalRead, err := io.ReadFull(reader, buffer)
