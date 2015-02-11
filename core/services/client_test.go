@@ -46,6 +46,8 @@ func TestConnect(t *testing.T) {
 		}
 	}
 
+	time.Sleep(10 * time.Second)
+
 	data := <-dataChannel
 
 	fmt.Println("Client received data from the channel")
@@ -64,6 +66,6 @@ func TestConnect(t *testing.T) {
 
 	tcpClient.Disconnect()
 	tcpServer.Stop()
-	//close(dataChannel)
+	close(dataChannel)
 	fmt.Println("Writing data to TCP server succeeded")
 }
