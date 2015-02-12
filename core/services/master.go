@@ -2,35 +2,87 @@ package services
 
 import (
 	log "github.com/golang/glog"
+	"github.com/silenteh/gantryos/config"
 	"github.com/silenteh/gantryos/core/proto"
+	"github.com/silenteh/gantryos/core/resources"
+	"github.com/silenteh/gantryos/models"
+	"strconv"
 )
 
-var masterInstance *gantryTCPServer
-var mReaderChannel chan *proto.Envelope
-var mWriterChannel chan *proto.Envelope
+type masterServer struct {
+	master        *models.Master
+	writerChannel chan *proto.Envelope
+	readerChannel chan *proto.Envelope
+	tcpServer     *gantryTCPServer
+}
 
-func StartMaster(ip, port string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) {
+func newMaster(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) masterServer {
 
-	// this is done only so that we can easily close the channel before exiting.
-	// TODO: improve it, because it's ugly
-	// Solutions: do we really need to care about closing the channel once the process exists ?
-	// also we can listen to specific messages which then close the channel
-	mReaderChannel = readerChannel
+	// Port
+	port := 6050
+	if config.GantryOSConfig.Master.Port != 0 {
+		port = config.GantryOSConfig.Master.Port
+	}
+	if masterPort != "" {
+		if newPort, err := strconv.Atoi(masterPort); err == nil {
+			port = newPort
+		}
+	}
+	// ==============================================
 
-	masterInstance = newGantryTCPServer(ip, port, mReaderChannel, writerChannel)
-	masterInstance.StartTCP()
+	// IP
+	ip := "127.0.0.1"
+	if config.GantryOSConfig.Master.IP != "" {
+		ip = config.GantryOSConfig.Master.IP
+	}
+	if masterIp != "" {
+		ip = masterIp
+	}
+	// ==============================================
 
-	// start the listener to detect the client calls
-	go masterListener(mReaderChannel)
+	// Hostname
+	hostname := resources.GetHostname()
+	// ==============================================
+
+	// Slave ID
+	masterId := config.GantryOSMasterId
+
+	master := models.NewMaster(masterId.Id, ip, hostname, port)
+
+	ms := masterServer{}
+	ms.master = master
+	ms.writerChannel = writerChannel
+	ms.readerChannel = readerChannel
+
+	return ms
 
 }
 
-func StopMaster() {
+func (m *masterServer) initTcpServer() {
+	masterInstance := newGantryTCPServer(m.master.Ip, strconv.Itoa(m.master.Port), m.readerChannel, m.writerChannel)
+	m.tcpServer = masterInstance
+	m.tcpServer.StartTCP()
+}
 
-	if masterInstance != nil {
-		close(mWriterChannel)
-		close(mReaderChannel)
-		masterInstance.Stop()
+func StartMaster(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) masterServer {
+
+	// cerate a new master instance
+	ms := newMaster(masterIp, masterPort, readerChannel, writerChannel)
+
+	// init the TCP server
+	ms.initTcpServer()
+
+	// start the listener to detect the client calls
+	ms.startListener()
+
+	return ms
+
+}
+
+func (m *masterServer) StopMaster() {
+
+	if m.tcpServer != nil {
+		m.tcpServer.Stop()
 	}
 	log.Infoln("GantryOS master stopped.")
 

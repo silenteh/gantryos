@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	//"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/utils"
@@ -76,7 +75,6 @@ func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
 	}
 
 	dataSize := len(data)
-	//fmt.Println(dataSize)
 
 	data = append(utils.IntToBytes(dataSize), data...)
 

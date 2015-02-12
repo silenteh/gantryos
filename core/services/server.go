@@ -108,7 +108,6 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 		// get the lenght
 		lenght := make([]byte, 4)
-
 		_, err := reader.Read(lenght)
 		totalSize := utils.BytesToInt(lenght)
 
@@ -116,7 +115,7 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 		_, err = io.ReadFull(reader, buffer) //io.ReadFull(reader, buffer)
 		if err != nil && err != io.EOF {
 			log.Errorln(err)
-			continue
+			break
 		}
 
 		envelope := new(proto.Envelope)

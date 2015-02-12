@@ -2,67 +2,132 @@ package services
 
 import (
 	log "github.com/golang/glog"
+	"github.com/silenteh/gantryos/config"
 	"github.com/silenteh/gantryos/core/proto"
+	"github.com/silenteh/gantryos/core/resources"
+	"github.com/silenteh/gantryos/models"
+	"time"
 )
 
-var sReaderChannel chan *proto.Envelope
-var sWriterChannel chan *proto.Envelope
+type slaveServer struct {
+	slave         *models.Slave
+	writerChannel chan *proto.Envelope
+	readerChannel chan *proto.Envelope
+	tcpClient     *gantryTCPClient
+	masterIp      string
+	masterPort    string
+}
 
-var slaveInstance *gantryTCPClient
+func newSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) slaveServer {
 
-func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) {
+	slave := slaveServer{}
 
-	sReaderChannel = readerChannel
-	sWriterChannel = writerChannel
+	// Port
+	port := 6051
+	if config.GantryOSConfig.Slave.Port != 0 {
+		port = config.GantryOSConfig.Slave.Port
+	}
+	// ==============================================
 
-	slaveInstance = newGantryTCPClient(masterIp, masterPort)
+	// IP
+	ip := "127.0.0.1"
+	if config.GantryOSConfig.Slave.IP != "" {
+		ip = config.GantryOSConfig.Slave.IP
+	}
+	// ==============================================
+
+	// Hostname
+	hostname := resources.GetHostname()
+	// ==============================================
+
+	// Slave ID
+	slaveId := config.GantryOSSlaveId
+
+	slaveInfo := models.NewSlave(slaveId.Id, ip, hostname, port, config.GantryOSConfig.Slave.Checkpoint, slaveId.Registered)
+
+	// assign properties
+	slave.masterIp = masterIp
+	slave.masterPort = masterPort
+	slave.readerChannel = readerChannel
+	slave.writerChannel = writerChannel
+	slave.slave = slaveInfo
+
+	return slave
+
+}
+
+func (s *slaveServer) initTcpClient() {
+
+	slaveInstance := newGantryTCPClient(s.masterIp, s.masterPort)
 	err := slaveInstance.Connect()
 	if err != nil {
-		log.Fatalln("Cannot connect to master", masterIp, "on port", masterPort, " => ", err)
+		log.Fatalln("Cannot connect to master", s.masterIp, "on port", s.masterPort, " => ", err)
 	}
 
-	// init Slave: the method is in the slaveactions.go file
-	// should be improved
-	initSlave()
+	s.tcpClient = slaveInstance
 
-	// start the writers to pull from the queue and write to the master
-	go writer(sWriterChannel)
-
-	// start the listener to detect the master requests
-	go slaveListener(readerChannel)
-
-	// the method blocks therefore start a go routine
-	go startHeartBeats()
 }
 
-func slaveSendMessage(envelope *proto.Envelope) {
-	sWriterChannel <- envelope
+func (s *slaveServer) startWriter() {
+
+	go writerLoop(s)
 }
 
-func writer(channel chan *proto.Envelope) {
+func writerLoop(s *slaveServer) {
+
 	for {
-		// this blocks until there is data in the channel
-		envelope := <-sWriterChannel
-		if err := slaveInstance.Write(envelope); err != nil {
+		envelope := <-s.writerChannel
+		// means the channel got closed
+		if envelope == nil {
+			break
+		}
+		if err := s.tcpClient.Write(envelope); err != nil {
 			log.Errorln(err)
 			// re-queue
-			sWriterChannel <- envelope
+			s.writerChannel <- envelope
 			// disconnect and ignore the error
-			slaveInstance.Disconnect()
+			s.tcpClient.Disconnect()
 			//reconnect
-			slaveInstance.Connect()
+			s.tcpClient.Connect()
 
 			continue
 		}
 	}
 }
 
-func StopSlave() {
+func (s *slaveServer) startHeartBeats() {
+	go func(slave *slaveServer) {
+		for {
+			s.pingMaster()
+			time.Sleep(15 * time.Second)
+		}
+	}(s)
+}
 
-	if slaveInstance != nil {
-		close(sWriterChannel)
-		close(sReaderChannel)
-		slaveInstance.Disconnect()
+// Public methods
+
+func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) slaveServer {
+
+	// create a new slave client
+	slave := newSlave(masterIp, masterPort, readerChannel, writerChannel)
+
+	// init the TCP connection with the amster
+	slave.initTcpClient()
+
+	// start the loop for writing to the TCP connection
+	slave.startWriter()
+
+	// start to send the heartbeats to the master
+	slave.startHeartBeats()
+
+	return slave
+
+}
+
+func (s *slaveServer) StopSlave() {
+
+	if s.tcpClient != nil {
+		s.tcpClient.Disconnect()
 	}
 	log.Infoln("GantryOS slave stopped.")
 

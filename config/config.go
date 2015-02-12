@@ -28,8 +28,14 @@ type slaveInfo struct {
 	Registered bool // flag which says if it already registered
 }
 
+type masterInfo struct {
+	Id         string
+	Registered bool
+}
+
 var GantryOSConfig gantryOSConfig = loadConfig()
 var GantryOSSlaveId slaveInfo = loadSlaveId()
+var GantryOSMasterId masterInfo = loadMasterId()
 
 func loadConfig() gantryOSConfig {
 
@@ -82,4 +88,35 @@ func loadSlaveId() slaveInfo {
 	slaveId.Registered = true
 
 	return slaveId
+}
+
+func loadMasterId() masterInfo {
+
+	var configFilePath string
+	for _, path := range []string{"", "../", "../../"} {
+		if utils.FileExists(path + "master.json") {
+			configFilePath = path + "master.json"
+			break
+		}
+	}
+
+	// create a new ID and write the file
+	if configFilePath == "" {
+		id := uuid.NewRandom().String()
+		json := `{"Id":"` + id + `", "Registered" : false}`
+		err := utils.WriteFile("master.json", []byte(json), 0644)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		return masterInfo{Id: id, Registered: false}
+	}
+
+	configFile := utils.ReadFile(configFilePath)
+	var masterId masterInfo
+	if err := json.Unmarshal(configFile, &masterId); err != nil {
+		log.Fatalln("parsing slave id file: ", err.Error())
+	}
+	masterId.Registered = true
+
+	return masterId
 }
