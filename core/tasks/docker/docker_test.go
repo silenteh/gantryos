@@ -22,11 +22,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/credentialprovider"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/silenteh/gantryos/utils"
 )
 
 func verifyCalls(t *testing.T, fakeDocker *FakeDockerClient, calls []string) {
@@ -87,12 +84,12 @@ func TestGetContainerID(t *testing.T) {
 }
 
 func verifyPackUnpack(t *testing.T, podNamespace, podUID, podName, containerName string) {
-	container := &api.Container{Name: containerName}
+	container := &Container{Name: containerName}
 	hasher := adler32.New()
-	util.DeepHashObject(hasher, *container)
+	utils.DeepHashObject(hasher, *container)
 	computedHash := uint64(hasher.Sum32())
 	podFullName := fmt.Sprintf("%s.%s", podName, podNamespace)
-	name := BuildDockerName(types.UID(podUID), podFullName, container)
+	name := BuildDockerName(UID(podUID), podFullName, container)
 	returnedPodFullName, returnedUID, returnedContainerName, hash := ParseDockerName(name)
 	if podFullName != returnedPodFullName || podUID != string(returnedUID) || containerName != returnedContainerName || computedHash != hash {
 		t.Errorf("For (%s, %s, %s, %d), unpacked (%s, %s, %s, %d)", podFullName, podUID, containerName, computedHash, returnedPodFullName, returnedUID, returnedContainerName, hash)
@@ -108,7 +105,7 @@ func TestContainerManifestNaming(t *testing.T) {
 	// No Container name
 	verifyPackUnpack(t, "other", podUID, "name", "")
 
-	container := &api.Container{Name: "container"}
+	container := &Container{Name: "container"}
 	podName := "foo"
 	podNamespace := "test"
 	name := fmt.Sprintf("k8s_%s_%s.%s_%s_42", container.Name, podName, podNamespace, podUID)
@@ -211,14 +208,14 @@ func TestDockerKeyringLookup(t *testing.T) {
 		Email:    "grace@example.com",
 	}
 
-	dk := &credentialprovider.BasicDockerKeyring{}
-	dk.Add(credentialprovider.DockerConfig{
-		"bar.example.com/pong": credentialprovider.DockerConfigEntry{
+	dk := &BasicDockerKeyring{}
+	dk.Add(DockerConfig{
+		"bar.example.com/pong": DockerConfigEntry{
 			Username: grace.Username,
 			Password: grace.Password,
 			Email:    grace.Email,
 		},
-		"bar.example.com": credentialprovider.DockerConfigEntry{
+		"bar.example.com": DockerConfigEntry{
 			Username: ada.Username,
 			Password: ada.Password,
 			Email:    ada.Email,

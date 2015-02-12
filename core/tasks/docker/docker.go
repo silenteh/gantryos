@@ -29,13 +29,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/credentialprovider"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
+	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
+	"github.com/silenteh/gantryos/utils"
 )
+
+type UID string
 
 // DockerInterface is an abstract interface for testability.  It abstracts the interface of docker.Client.
 type DockerInterface interface {
@@ -67,27 +67,27 @@ type DockerPuller interface {
 // dockerPuller is the default implementation of DockerPuller.
 type dockerPuller struct {
 	client  DockerInterface
-	keyring credentialprovider.DockerKeyring
+	keyring DockerKeyring
 }
 
 type throttledDockerPuller struct {
-	puller  dockerPuller
-	limiter util.RateLimiter
+	puller dockerPuller
+	//limiter utils.RateLimiter
 }
 
 // NewDockerPuller creates a new instance of the default implementation of DockerPuller.
 func NewDockerPuller(client DockerInterface, qps float32, burst int) DockerPuller {
 	dp := dockerPuller{
 		client:  client,
-		keyring: credentialprovider.NewDockerKeyring(),
+		keyring: NewDockerKeyring(),
 	}
 
 	if qps == 0.0 {
 		return dp
 	}
 	return &throttledDockerPuller{
-		puller:  dp,
-		limiter: util.NewTokenBucketRateLimiter(qps, burst),
+		puller: dp,
+		//limiter: utils.NewTokenBucketRateLimiter(qps, burst),
 	}
 }
 
@@ -219,10 +219,10 @@ func (p dockerPuller) Pull(image string) error {
 }
 
 func (p throttledDockerPuller) Pull(image string) error {
-	if p.limiter.CanAccept() {
-		return p.puller.Pull(image)
-	}
-	return fmt.Errorf("pull QPS exceeded.")
+	//if p.limiter.CanAccept() {
+	return p.puller.Pull(image)
+	//}
+	//return fmt.Errorf("pull QPS exceeded.")
 }
 
 func (p dockerPuller) IsImagePresent(image string) (bool, error) {
@@ -255,7 +255,7 @@ func (p throttledDockerPuller) IsImagePresent(name string) (bool, error) {
 // DockerContainers is a map of containers
 type DockerContainers map[DockerID]*docker.APIContainers
 
-func (c DockerContainers) FindPodContainer(podFullName string, uid types.UID, containerName string) (*docker.APIContainers, bool, uint64) {
+func (c DockerContainers) FindPodContainer(podFullName string, uid UID, containerName string) (*docker.APIContainers, bool, uint64) {
 	for _, dockerContainer := range c {
 		if len(dockerContainer.Names) == 0 {
 			continue
@@ -315,7 +315,7 @@ func GetKubeletDockerContainers(client DockerInterface, allContainers bool) (Doc
 
 // GetRecentDockerContainersWithNameAndUUID returns a list of dead docker containers which matches the name
 // and uid given.
-func GetRecentDockerContainersWithNameAndUUID(client DockerInterface, podFullName string, uid types.UID, containerName string) ([]*docker.Container, error) {
+func GetRecentDockerContainersWithNameAndUUID(client DockerInterface, podFullName string, uid UID, containerName string) ([]*docker.Container, error) {
 	var result []*docker.Container
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
 	if err != nil {
@@ -379,7 +379,7 @@ var (
 	ErrContainerCannotRun = errors.New("Container cannot run")
 )
 
-func inspectContainer(client DockerInterface, dockerID, containerName, tPath string) (*api.ContainerStatus, error) {
+func inspectContainer(client DockerInterface, dockerID, containerName, tPath string) (*ContainerStatus, error) {
 	inspectResult, err := client.InspectContainer(dockerID)
 
 	if err != nil {
@@ -387,19 +387,19 @@ func inspectContainer(client DockerInterface, dockerID, containerName, tPath str
 	}
 	if inspectResult == nil {
 		// Why did we not get an error?
-		return &api.ContainerStatus{}, nil
+		return &ContainerStatus{}, nil
 	}
 
 	glog.V(3).Infof("Container inspect result: %+v", *inspectResult)
-	containerStatus := api.ContainerStatus{
+	containerStatus := ContainerStatus{
 		Image:       inspectResult.Config.Image,
 		ContainerID: "docker://" + dockerID,
 	}
 
 	waiting := true
 	if inspectResult.State.Running {
-		containerStatus.State.Running = &api.ContainerStateRunning{
-			StartedAt: util.NewTime(inspectResult.State.StartedAt),
+		containerStatus.State.Running = &ContainerStateRunning{
+			StartedAt: utils.NewTime(inspectResult.State.StartedAt),
 		}
 		if containerName == "net" && inspectResult.NetworkSettings != nil {
 			containerStatus.PodIP = inspectResult.NetworkSettings.IPAddress
@@ -415,11 +415,11 @@ func inspectContainer(client DockerInterface, dockerID, containerName, tPath str
 		} else {
 			reason = inspectResult.State.Error
 		}
-		containerStatus.State.Termination = &api.ContainerStateTerminated{
+		containerStatus.State.Termination = &ContainerStateTerminated{
 			ExitCode:   inspectResult.State.ExitCode,
 			Reason:     reason,
-			StartedAt:  util.NewTime(inspectResult.State.StartedAt),
-			FinishedAt: util.NewTime(inspectResult.State.FinishedAt),
+			StartedAt:  utils.NewTime(inspectResult.State.StartedAt),
+			FinishedAt: utils.NewTime(inspectResult.State.FinishedAt),
 		}
 		if tPath != "" {
 			path, found := inspectResult.Volumes[tPath]
@@ -439,7 +439,7 @@ func inspectContainer(client DockerInterface, dockerID, containerName, tPath str
 		// TODO(dchen1107): Separate issue docker/docker#8294 was filed
 		// TODO(dchen1107): Need to figure out why we are still waiting
 		// Check any issue to run container
-		containerStatus.State.Waiting = &api.ContainerStateWaiting{
+		containerStatus.State.Waiting = &ContainerStateWaiting{
 			Reason: ErrContainerCannotRun.Error(),
 		}
 	}
@@ -448,13 +448,13 @@ func inspectContainer(client DockerInterface, dockerID, containerName, tPath str
 }
 
 // GetDockerPodInfo returns docker info for all containers in the pod/manifest.
-func GetDockerPodInfo(client DockerInterface, manifest api.PodSpec, podFullName string, uid types.UID) (api.PodInfo, error) {
-	info := api.PodInfo{}
-	expectedContainers := make(map[string]api.Container)
+func GetDockerPodInfo(client DockerInterface, manifest PodSpec, podFullName string, uid UID) (PodInfo, error) {
+	info := PodInfo{}
+	expectedContainers := make(map[string]Container)
 	for _, container := range manifest.Containers {
 		expectedContainers[container.Name] = container
 	}
-	expectedContainers["net"] = api.Container{}
+	expectedContainers["net"] = Container{}
 
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
 	if err != nil {
@@ -504,7 +504,7 @@ func GetDockerPodInfo(client DockerInterface, manifest api.PodSpec, podFullName 
 	}
 
 	if len(info) < (len(manifest.Containers) + 1) {
-		var containerStatus api.ContainerStatus
+		var containerStatus ContainerStatus
 		// Not all containers expected are created, verify if there are
 		// image related issues
 		for _, container := range manifest.Containers {
@@ -517,15 +517,15 @@ func GetDockerPodInfo(client DockerInterface, manifest api.PodSpec, podFullName 
 			// TODO(dchen1107): docker/docker/issues/8365 to figure out if the image exists
 			_, err := client.InspectImage(image)
 			if err == nil {
-				containerStatus.State.Waiting = &api.ContainerStateWaiting{
+				containerStatus.State.Waiting = &ContainerStateWaiting{
 					Reason: fmt.Sprintf("Image: %s is ready, container is creating", image),
 				}
 			} else if err == docker.ErrNoSuchImage {
-				containerStatus.State.Waiting = &api.ContainerStateWaiting{
+				containerStatus.State.Waiting = &ContainerStateWaiting{
 					Reason: fmt.Sprintf("Image: %s is not ready on the node", image),
 				}
 			} else {
-				containerStatus.State.Waiting = &api.ContainerStateWaiting{
+				containerStatus.State.Waiting = &ContainerStateWaiting{
 					Reason: err.Error(),
 				}
 			}
@@ -539,14 +539,14 @@ func GetDockerPodInfo(client DockerInterface, manifest api.PodSpec, podFullName 
 
 const containerNamePrefix = "k8s"
 
-func HashContainer(container *api.Container) uint64 {
+func HashContainer(container *Container) uint64 {
 	hash := adler32.New()
-	util.DeepHashObject(hash, *container)
+	utils.DeepHashObject(hash, *container)
 	return uint64(hash.Sum32())
 }
 
 // Creates a name which can be reversed to identify both full pod name and container name.
-func BuildDockerName(podUID types.UID, podFullName string, container *api.Container) string {
+func BuildDockerName(podUID UID, podFullName string, container *Container) string {
 	containerName := container.Name + "." + strconv.FormatUint(HashContainer(container), 16)
 	return fmt.Sprintf("%s_%s_%s_%s_%08x",
 		containerNamePrefix,
@@ -558,7 +558,7 @@ func BuildDockerName(podUID types.UID, podFullName string, container *api.Contai
 
 // Unpacks a container name, returning the pod full name and container name we would have used to
 // construct the docker name. If the docker name isn't the one we created, we may return empty strings.
-func ParseDockerName(name string) (podFullName string, podUID types.UID, containerName string, hash uint64) {
+func ParseDockerName(name string) (podFullName string, podUID UID, containerName string, hash uint64) {
 	// For some reason docker appears to be appending '/' to names.
 	// If it's there, strip it.
 	if name[0] == '/' {
@@ -591,7 +591,7 @@ func ParseDockerName(name string) (podFullName string, podUID types.UID, contain
 	podFullName = parts[2]
 
 	// Pod UID.
-	podUID = types.UID(parts[3])
+	podUID = UID(parts[3])
 
 	return
 }
