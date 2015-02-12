@@ -14,6 +14,7 @@ install:
   - go get github.com/fsouza/go-dockerclient
   - go get github.com/davecgh/go-spew/spew
   - go get github.com/ghodss/yaml
+  - go get github.com/socketplane/libovsdb
 
 script:
   - go test -v ./...
