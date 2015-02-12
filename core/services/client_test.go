@@ -11,17 +11,20 @@ import (
 
 var master = models.NewMaster("1", "127.0.0.1", "localhost-master", 6060)
 var slave = models.NewSlave("1", "127.0.0.1", "localhost-slave", 6061, true, false)
-var dataChannel chan *proto.Envelope
+
+var masterChannel chan *proto.Envelope
 
 func TestConnect(t *testing.T) {
 
-	dataChannel = make(chan *proto.Envelope, 1000)
+	// start the slave
 
-	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), dataChannel, nil)
+	masterChannel = make(chan *proto.Envelope, 1024)
+
+	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), masterChannel, nil)
 	tcpServer.StartTCP()
 	fmt.Println("Server started")
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	tcpClient := newGantryTCPClient(master.Ip, strconv.Itoa(master.Port))
 
@@ -34,7 +37,6 @@ func TestConnect(t *testing.T) {
 	fmt.Println("Client connected")
 
 	heartbeat := models.NewHeartBeat(slave)
-
 	e := models.NewEnvelope()
 	e.Heartbeat = heartbeat
 
@@ -44,9 +46,10 @@ func TestConnect(t *testing.T) {
 			fmt.Println(i)
 			t.Error(err)
 		}
+		//time.Sleep(1 * time.Microsecond)
 	}
 
-	data := <-dataChannel
+	data := <-masterChannel
 
 	fmt.Println("Client received data from the channel")
 
@@ -64,6 +67,6 @@ func TestConnect(t *testing.T) {
 
 	tcpClient.Disconnect()
 	tcpServer.Stop()
-	close(dataChannel)
+	close(masterChannel)
 	fmt.Println("Writing data to TCP server succeeded")
 }

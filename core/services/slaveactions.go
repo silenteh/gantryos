@@ -68,11 +68,15 @@ func disconnectMaster() {
 // this method is used to tell the master we are still alive
 // IT BLOCKS !
 func pingMaster() {
+	m := models.NewHeartBeat(slaveInfo)
+	e := models.NewEnvelope()
+	e.Heartbeat = m
+	slaveSendMessage(e)
+}
+
+func startHeartBeats() {
 	for {
-		m := models.NewHeartBeat(slaveInfo)
-		e := models.NewEnvelope()
-		e.Heartbeat = m
-		slaveSendMessage(e)
+		pingMaster()
 		time.Sleep(5 * time.Second)
 	}
 }

@@ -32,7 +32,7 @@ func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope,
 	go slaveListener(readerChannel)
 
 	// the method blocks therefore start a go routine
-	go pingMaster()
+	go startHeartBeats()
 }
 
 func slaveSendMessage(envelope *proto.Envelope) {

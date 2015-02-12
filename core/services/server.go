@@ -2,6 +2,8 @@ package services
 
 import (
 	"bufio"
+	"encoding/binary"
+	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
@@ -102,17 +104,45 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 	for {
 
+		// new buffered reader
 		reader := bufio.NewReader(conn)
 
-		sizeByte, err := reader.ReadByte()
-		totalSize := int(sizeByte)
+		// convert it to an int
+		var totalSize int
+		err := binary.Read(reader, binary.BigEndian, &totalSize)
+		if err != nil {
+			fmt.Println("binary.Read failed:", err)
+			log.Errorln("Error reading the length of the frame", err)
+		}
 
-		buffer := make([]byte, totalSize)
-		totalRead, err := io.ReadFull(reader, buffer)
-		if err != nil || totalRead != totalSize {
-			log.Errorln("Error reading data from socket:", err)
+		fmt.Println("Total size:", totalSize)
+
+		if totalSize == 0 {
 			continue
 		}
+
+		buffer := make([]byte, totalSize)
+		_, err = io.ReadFull(reader, buffer) //io.ReadFull(reader, buffer)
+		if err != nil && err != io.EOF {
+			log.Errorln(err)
+			continue
+		}
+		//fmt.Println("Total size:", totalSize, " - total read:", totalRead)
+		// if err != nil && err != io.EOF {
+		// 	log.Errorln("Error reading data from socket:", err)
+		// 	//continue
+		// 	// keep reading
+		// 	for totalRead == totalSize {
+		// 		currentRead, err := reader.Read(buffer)
+		// 		totalRead = totalRead + currentRead
+		// 		if err == io.EOF {
+		// 			break
+		// 		}
+
+		// 	}
+		// }
+
+		//fmt.Printf("%s - %s", sizeByte, buffer[0])
 
 		envelope := new(proto.Envelope)
 
