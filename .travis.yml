@@ -11,6 +11,8 @@ install:
   - go get github.com/stretchr/testify/mock
   - go get github.com/samuel/go-zookeeper/zk
   - go get github.com/gorilla/mux
+  - go get github.com/fsouza/go-dockerclient
+  - go get github.com/davecgh/go-spew/spew
 
 script:
   - go test -v ./...
