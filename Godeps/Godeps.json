@@ -12,24 +12,8 @@
 			"Rev": "ab6cea4a44ef42b748cd88d2d372047b75806e0c"
 		},
 		{
-			"ImportPath": "github.com/gogo/protobuf/protoc-gen-gogo",
-			"Rev": "ab6cea4a44ef42b748cd88d2d372047b75806e0c"
-		},
-		{
-			"ImportPath": "github.com/gogo/protobuf/gogoproto",
-			"Rev": "ab6cea4a44ef42b748cd88d2d372047b75806e0c"
-		},
-		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "d1c4472bf2efd3826f2b5bdcc02d8416798d678c"
-		},
-		{
-			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
-		},
-		{
-			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "bb79e7c0cb15f7fe8db95942cb0f14c1eaa3f598"
 		}
 	]
 }
