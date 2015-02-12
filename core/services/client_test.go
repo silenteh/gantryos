@@ -16,8 +16,6 @@ var masterChannel chan *proto.Envelope
 
 func TestConnect(t *testing.T) {
 
-	// start the slave
-
 	masterChannel = make(chan *proto.Envelope, 1024)
 
 	tcpServer := newGantryTCPServer(master.Ip, strconv.Itoa(master.Port), masterChannel, nil)
@@ -40,7 +38,7 @@ func TestConnect(t *testing.T) {
 	e := models.NewEnvelope()
 	e.Heartbeat = heartbeat
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 1024; i++ {
 		err = tcpClient.Write(e)
 		if err != nil {
 			fmt.Println(i)
@@ -67,6 +65,5 @@ func TestConnect(t *testing.T) {
 
 	tcpClient.Disconnect()
 	tcpServer.Stop()
-	close(masterChannel)
 	fmt.Println("Writing data to TCP server succeeded")
 }
