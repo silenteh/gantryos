@@ -29,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 
-	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
 	"github.com/silenteh/gantryos/utils"
@@ -76,15 +75,12 @@ type throttledDockerPuller struct {
 }
 
 // NewDockerPuller creates a new instance of the default implementation of DockerPuller.
-func NewDockerPuller(client DockerInterface, qps float32, burst int) DockerPuller {
+func NewDockerPuller(client DockerInterface) DockerPuller {
 	dp := dockerPuller{
 		client:  client,
 		keyring: NewDockerKeyring(),
 	}
 
-	if qps == 0.0 {
-		return dp
-	}
 	return &throttledDockerPuller{
 		puller: dp,
 		//limiter: utils.NewTokenBucketRateLimiter(qps, burst),

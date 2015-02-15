@@ -30,6 +30,10 @@
 		{
 			"ImportPath": "github.com/socketplane/libovsdb",
 			"Rev": "555a561202ec17fe6c068038a35291ce9ba33066"
+		},
+		{
+			"ImportPath": "gopkg.in/lxc/go-lxc.v2",
+			"Rev": "87d2acfe2ac7863b3c5dde360d1eefc6f643483b"
 		}		
 	]
 }

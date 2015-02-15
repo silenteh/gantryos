@@ -10,6 +10,9 @@ import (
 	"net"
 )
 
+// tracks down the connections that the slaves made to the server so we can execute a specific task on a specific slave
+var slaveConnections = make(map[string]*net.TCPConn)
+
 var totalSlaveConnections = 1
 
 type gantryTCPServer struct {

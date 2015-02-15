@@ -102,6 +102,7 @@ message LostSlaveMessage {
 // currently known.
 message ReconcileTasksMessage {    
   repeated TaskStatus statuses = 1; // Should be non-terminal only.
+  optional string slave_id = 2;
 }
 
 message RegisterSlaveMessage {  

@@ -1,24 +1,16 @@
 package services
 
-import (
-	"github.com/silenteh/gantryos/models"
-)
-
 //====================================================================
 
 // this method is used for registering with the master
 func (s *slaveServer) joinMaster() {
-	m := s.slave.RegisterSlaveMessage()
-	e := models.NewEnvelope()
-	e.RegisterSlave = m
+	e := s.slave.RegisterSlaveMessage()
 	s.writerChannel <- e
 }
 
 // this method is used to re-register with the master
 func (s *slaveServer) reRegisterMaster() {
-	m := s.slave.ReRegisterSlaveMessage()
-	e := models.NewEnvelope()
-	e.ReRegisterSlave = m
+	e := s.slave.ReRegisterSlaveMessage()
 	s.writerChannel <- e
 }
 
@@ -30,9 +22,7 @@ func disconnectMaster() {
 // this method is used to tell the master we are still alive
 // IT BLOCKS !
 func (s *slaveServer) pingMaster() {
-	m := models.NewHeartBeat(s.slave)
-	e := models.NewEnvelope()
-	e.Heartbeat = m
+	e := s.slave.NewHeartBeat()
 	s.writerChannel <- e
 }
 

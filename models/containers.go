@@ -16,12 +16,19 @@ type container struct {
 	ForcePull            bool
 	Network              proto.ContainerInfo_Network // BRIDGED_NETWORK || HOST_NETWORK || ...
 	Hostname             string
+	DomainName           string
+	WorkingDir           string
+	MacAddress           string // Sets the container's Ethernet device's MAC address
+	VolumesFrom          string // Mount all volumes from the given container(s)
 	Resources            resources
 	Volumes              containerVolumes
 	PortsMapping         portsMapping
 	HealthCheck          healthchecks
 	EnvironmentVariables environmentVariables
-	CMDs                 parameters // this is to override the execution of the container
+	CMDs                 arguments // this is to override the execution of the container
+	Entrypoint           arguments
+	SecurityOptions      arguments // these are labels for AppArmor or SELinux
+	OnBuild              arguments
 }
 
 func (c *container) ToProtoBuf() *proto.ContainerInfo {
@@ -34,6 +41,12 @@ func (c *container) ToProtoBuf() *proto.ContainerInfo {
 	cinfo.Volumes = c.Volumes.ToProtoBuf()
 	cinfo.PortMappings = c.PortsMapping.ToProtoBuf()
 	cinfo.Environments = c.EnvironmentVariables.ToProtoBuf()
-	cinfo.Parameters = c.CMDs.ToProtoBuf()
+	cinfo.Cmd = c.CMDs
+	cinfo.EntryPoint = c.Entrypoint
+	cinfo.WorkingDir = &c.WorkingDir
+	cinfo.MacAddress = &c.MacAddress
+	cinfo.SecurityOptions = c.SecurityOptions
+	cinfo.OnBuild = c.OnBuild
+	cinfo.VolumesFrom = &c.VolumesFrom
 	return cinfo
 }

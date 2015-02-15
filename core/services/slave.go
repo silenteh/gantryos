@@ -68,12 +68,12 @@ func (s *slaveServer) initTcpClient() {
 
 }
 
-func (s *slaveServer) startWriter() {
+func (s *slaveServer) startSlaveWriter() {
 
-	go writerLoop(s)
+	go writerSlaveLoop(s)
 }
 
-func writerLoop(s *slaveServer) {
+func writerSlaveLoop(s *slaveServer) {
 
 	for {
 		envelope := <-s.writerChannel
@@ -115,7 +115,10 @@ func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope,
 	slave.initTcpClient()
 
 	// start the loop for writing to the TCP connection
-	slave.startWriter()
+	slave.startSlaveWriter()
+
+	// start the loop for reading data coming from the TCP connection
+	slave.startSlaveListener()
 
 	// start to send the heartbeats to the master
 	slave.startHeartBeats()

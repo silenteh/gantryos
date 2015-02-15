@@ -9,7 +9,7 @@ import (
 // and therefore which request the client is doing
 // this method blocks
 
-func (master *masterServer) startListener() {
+func (master *masterServer) startMasterListener() {
 	//total := 0
 
 	go func(m *masterServer) {

@@ -37,3 +37,14 @@ func (m *Master) ToProtoBuf() *proto.MasterInfo {
 func (m *Master) GetPortString() string {
 	return strconv.Itoa(m.Port)
 }
+
+// =========================================================================
+
+func (ms *Master) RunTask(t Task) *proto.Envelope {
+	e := newMasterEnvelope(ms)
+	m := new(proto.RunTaskMessage)
+	m.Task = t.ToProtoBuf()
+	e.DestinationId = &t.Slave.Id
+	e.RunTask = m
+	return e
+}

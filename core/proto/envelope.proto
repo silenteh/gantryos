@@ -52,24 +52,27 @@ enum MessageType {
 }
 
 message Envelope {
-	
-	optional ResourceOffer resource_offer = 1;
-	optional TaskInfo task_info = 2;
-	optional TaskStatus task_status = 3;	
-	optional MasterInfo master_info = 4;
-	optional SlaveInfo slave_info = 5;	
-	optional Request request = 6;
 
-	// Tasks
-	optional LaunchTasksMessage launch_task = 7;
-	optional KillTaskMessage kill_task = 8;
+	optional string sender_id = 1;
+	optional string destination_id = 2;
+	
+	optional ResourceOffer resource_offer = 3;
+	optional TaskInfo task_info = 4;
+	optional TaskStatus task_status = 5;
+	optional MasterInfo master_info = 6;
+	optional SlaveInfo slave_info = 7;	
+	optional Request request = 8;
+
+	// Tasks	
+	optional RunTaskMessage run_task = 9;
+	optional KillTaskMessage kill_task = 10;
 
 	// messages 
-	optional RegisterSlaveMessage register_slave = 9;
-	optional ReregisterSlaveMessage re_register_slave = 10;
-	optional SlaveRegisteredMessage slave_re_registered = 11;
-	optional UnregisterSlaveMessage unregister_slave = 12;
-	optional HeartbeatMessage heartbeat = 13;
-	optional ReconcileTasksMessage reconcile_tasks = 14;
-	optional LostSlaveMessage lost_slave = 15;
+	optional RegisterSlaveMessage register_slave = 11;
+	optional ReregisterSlaveMessage re_register_slave = 12;
+	optional SlaveRegisteredMessage slave_re_registered = 13;
+	optional UnregisterSlaveMessage unregister_slave = 14;
+	optional HeartbeatMessage heartbeat = 15;
+	optional ReconcileTasksMessage reconcile_tasks = 16;
+	optional LostSlaveMessage lost_slave = 17;	
 }

@@ -352,6 +352,7 @@ func (m *LostSlaveMessage) GetSlaveId() string {
 // currently known.
 type ReconcileTasksMessage struct {
 	Statuses         []*TaskStatus `protobuf:"bytes,1,rep,name=statuses" json:"statuses,omitempty"`
+	SlaveId          *string       `protobuf:"bytes,2,opt,name=slave_id" json:"slave_id,omitempty"`
 	XXX_unrecognized []byte        `json:"-"`
 }
 
@@ -363,6 +364,13 @@ func (m *ReconcileTasksMessage) GetStatuses() []*TaskStatus {
 		return m.Statuses
 	}
 	return nil
+}
+
+func (m *ReconcileTasksMessage) GetSlaveId() string {
+	if m != nil && m.SlaveId != nil {
+		return *m.SlaveId
+	}
+	return ""
 }
 
 type RegisterSlaveMessage struct {
@@ -1540,6 +1548,29 @@ func (m *ReconcileTasksMessage) Unmarshal(data []byte) error {
 			m.Statuses = append(m.Statuses, &TaskStatus{})
 			m.Statuses[len(m.Statuses)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt4.Errorf("proto: wrong wireType = %d for field SlaveId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io1.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io1.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.SlaveId = &s
+			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -2140,6 +2171,7 @@ func (this *ReconcileTasksMessage) String() string {
 	}
 	s := strings2.Join([]string{`&ReconcileTasksMessage{`,
 		`Statuses:` + strings2.Replace(fmt5.Sprintf("%v", this.Statuses), "TaskStatus", "TaskStatus", 1) + `,`,
+		`SlaveId:` + valueToStringMessages(this.SlaveId) + `,`,
 		`XXX_unrecognized:` + fmt5.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -2431,6 +2463,10 @@ func (m *ReconcileTasksMessage) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovMessages(uint64(l))
 		}
+	}
+	if m.SlaveId != nil {
+		l = len(*m.SlaveId)
+		n += 1 + l + sovMessages(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -2731,8 +2767,12 @@ func NewPopulatedReconcileTasksMessage(r randyMessages, easy bool) *ReconcileTas
 			this.Statuses[i] = NewPopulatedTaskStatus(r, easy)
 		}
 	}
+	if r.Intn(10) != 0 {
+		v18 := randStringMessages(r)
+		this.SlaveId = &v18
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedMessages(r, 2)
+		this.XXX_unrecognized = randUnrecognizedMessages(r, 3)
 	}
 	return this
 }
@@ -2754,9 +2794,9 @@ func NewPopulatedReregisterSlaveMessage(r randyMessages, easy bool) *ReregisterS
 		this.Slave = NewPopulatedSlaveInfo(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v18 := r.Intn(10)
-		this.Tasks = make([]*TaskInfo, v18)
-		for i := 0; i < v18; i++ {
+		v19 := r.Intn(10)
+		this.Tasks = make([]*TaskInfo, v19)
+		for i := 0; i < v19; i++ {
 			this.Tasks[i] = NewPopulatedTaskInfo(r, easy)
 		}
 	}
@@ -2819,9 +2859,9 @@ func randUTF8RuneMessages(r randyMessages) rune {
 	return res
 }
 func randStringMessages(r randyMessages) string {
-	v19 := r.Intn(100)
-	tmps := make([]rune, v19)
-	for i := 0; i < v19; i++ {
+	v20 := r.Intn(100)
+	tmps := make([]rune, v20)
+	for i := 0; i < v20; i++ {
 		tmps[i] = randUTF8RuneMessages(r)
 	}
 	return string(tmps)
@@ -2843,11 +2883,11 @@ func randFieldMessages(data []byte, r randyMessages, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateMessages(data, uint64(key))
-		v20 := r.Int63()
+		v21 := r.Int63()
 		if r.Intn(2) == 0 {
-			v20 *= -1
+			v21 *= -1
 		}
-		data = encodeVarintPopulateMessages(data, uint64(v20))
+		data = encodeVarintPopulateMessages(data, uint64(v21))
 	case 1:
 		data = encodeVarintPopulateMessages(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -3340,6 +3380,12 @@ func (m *ReconcileTasksMessage) MarshalTo(data []byte) (n int, err error) {
 			i += n
 		}
 	}
+	if m.SlaveId != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintMessages(data, i, uint64(len(*m.SlaveId)))
+		i += copy(data[i:], *m.SlaveId)
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -3689,6 +3735,7 @@ func (this *ReconcileTasksMessage) GoString() string {
 	}
 	s := strings3.Join([]string{`&proto.ReconcileTasksMessage{` +
 		`Statuses:` + fmt6.Sprintf("%#v", this.Statuses),
+		`SlaveId:` + valueToGoStringMessages(this.SlaveId, "string"),
 		`XXX_unrecognized:` + fmt6.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
 	return s
 }
@@ -4640,6 +4687,15 @@ func (this *ReconcileTasksMessage) VerboseEqual(that interface{}) error {
 			return fmt7.Errorf("Statuses this[%v](%v) Not Equal that[%v](%v)", i, this.Statuses[i], i, that1.Statuses[i])
 		}
 	}
+	if this.SlaveId != nil && that1.SlaveId != nil {
+		if *this.SlaveId != *that1.SlaveId {
+			return fmt7.Errorf("SlaveId this(%v) Not Equal that(%v)", *this.SlaveId, *that1.SlaveId)
+		}
+	} else if this.SlaveId != nil {
+		return fmt7.Errorf("this.SlaveId == nil && that.SlaveId != nil")
+	} else if that1.SlaveId != nil {
+		return fmt7.Errorf("SlaveId this(%v) Not Equal that(%v)", this.SlaveId, that1.SlaveId)
+	}
 	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return fmt7.Errorf("XXX_unrecognized this(%v) Not Equal that(%v)", this.XXX_unrecognized, that1.XXX_unrecognized)
 	}
@@ -4672,6 +4728,15 @@ func (this *ReconcileTasksMessage) Equal(that interface{}) bool {
 		if !this.Statuses[i].Equal(that1.Statuses[i]) {
 			return false
 		}
+	}
+	if this.SlaveId != nil && that1.SlaveId != nil {
+		if *this.SlaveId != *that1.SlaveId {
+			return false
+		}
+	} else if this.SlaveId != nil {
+		return false
+	} else if that1.SlaveId != nil {
+		return false
 	}
 	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false

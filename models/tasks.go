@@ -5,7 +5,7 @@ import (
 	"github.com/silenteh/gantryos/core/proto"
 )
 
-type task struct {
+type Task struct {
 	Id        string
 	Name      string
 	Version   string
@@ -17,8 +17,8 @@ type task struct {
 	Labels    labels
 }
 
-func NewTask(name, version string, s Slave, res resources, cmd command, cont container, disc discovery, lbls labels) *task {
-	t := new(task)
+func NewTask(name, version string, s Slave, res resources, cmd command, cont container, disc discovery, lbls labels) *Task {
+	t := new(Task)
 	t.Id = uuid.NewRandom().String()
 	t.Name = name
 	t.Version = version
@@ -32,7 +32,7 @@ func NewTask(name, version string, s Slave, res resources, cmd command, cont con
 	return t
 }
 
-func (t *task) ToProtoBuf() *proto.TaskInfo {
+func (t *Task) ToProtoBuf() *proto.TaskInfo {
 
 	taskInfo := new(proto.TaskInfo)
 	taskInfo.TaskId = &t.Id

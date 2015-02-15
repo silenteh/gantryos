@@ -56,7 +56,7 @@ func TestNewMaster(t *testing.T) {
 	slave.initTcpClient()
 
 	// start the writer loop
-	slave.startWriter()
+	slave.startSlaveWriter()
 
 	// send an heartbeat
 	slave.pingMaster()

@@ -144,16 +144,17 @@ enum ResourceType {
  */
 message TaskStatus {  
   optional string task_id = 1;
-  optional TaskState state = 2;
-  optional string message = 3; // Possible message explaining state.
-  optional bytes data = 4;
-  optional SlaveInfo slave = 5;
-  optional double timestamp = 6;
+  optional string container_id = 2;
+  optional TaskState state = 3;
+  optional string message = 4; // Possible message explaining state.
+  optional bytes data = 5;
+  optional SlaveInfo slave = 6;
+  optional double timestamp = 7;
 
   // Describes whether the task has been determined to be healthy
   // (true) or unhealthy (false) according to the HealthCheck field in
   // the command info.
-  optional bool healthy = 7;
+  optional bool healthy = 8;
 }
 
 
@@ -423,28 +424,34 @@ message ContainerInfo {
 
   repeated PortMapping port_mappings = 3;
 
-  optional bool privileged = 4 [default = false];
-
-  // Allowing arbitrary parameters to be passed to docker CLI.
-  // Note that anything passed to this field is not guaranteed
-  // to be supported moving forward, as we might move away from
-  // the docker CLI.
-  optional Parameters parameters = 5;
+  optional bool privileged = 4 [default = false];  
 
   // With this flag set to true, the docker containerizer will
   // pull the docker image from the registry even if the image
   // is already downloaded on the slave.
-  optional bool force_pull_image = 6;
+  optional bool force_pull_image = 5;
   
 
-  optional Type type = 7 [default = DOCKER];
-  repeated Volume volumes = 8;
-  optional string hostname = 9;
-  optional Environment environments = 10;
+  optional Type type = 6 [default = DOCKER];
+  repeated Volume volumes = 7;
+  optional string hostname = 8;
+  
+  optional string domain_name = 9;
+  repeated string entry_point = 10;
+  repeated string cmd = 11;
+  repeated string security_options = 12;
+  repeated string on_build = 13;
+  optional string working_dir = 14;
+  optional string mac_address = 15;
+  optional string volumes_from = 16;
+
+  optional Environment environments = 17;
 
   // user name space ?
   // probably we need to define a user message
-  optional User user = 11;
+  optional User user = 18;
+
+
   
   
 }

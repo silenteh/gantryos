@@ -56,20 +56,32 @@ func (s *Slave) ToProtoBuf() *proto.SlaveInfo {
 	return slave
 }
 
-func (s *Slave) RegisterSlaveMessage() *proto.RegisterSlaveMessage {
+func (s *Slave) RegisterSlaveMessage() *proto.Envelope {
 
+	e := newSlaveEnvelope(s)
 	m := new(proto.RegisterSlaveMessage)
 	m.Slave = s.ToProtoBuf()
-	return m
+	e.RegisterSlave = m
+	return e
 }
 
-func (s *Slave) ReRegisterSlaveMessage() *proto.ReregisterSlaveMessage {
-
+func (s *Slave) ReRegisterSlaveMessage() *proto.Envelope {
+	e := newSlaveEnvelope(s)
 	m := new(proto.ReregisterSlaveMessage)
 	m.Slave = s.ToProtoBuf()
-	return m
+	e.ReRegisterSlave = m
+	return e
 }
 
 func (s *Slave) GetPortString() string {
 	return strconv.Itoa(s.Port)
+}
+
+func (s *Slave) NewHeartBeat() *proto.Envelope {
+
+	e := newSlaveEnvelope(s)
+	hb := new(proto.HeartbeatMessage)
+	hb.Slave = s.ToProtoBuf()
+	e.Heartbeat = hb
+	return e
 }

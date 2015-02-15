@@ -613,16 +613,17 @@ func (m *TaskInfo) GetDiscovery() *DiscoveryInfo {
 // *
 // Describes the current status of a task.
 type TaskStatus struct {
-	TaskId    *string    `protobuf:"bytes,1,opt,name=task_id" json:"task_id,omitempty"`
-	State     *TaskState `protobuf:"varint,2,opt,name=state,enum=proto.TaskState" json:"state,omitempty"`
-	Message   *string    `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
-	Data      []byte     `protobuf:"bytes,4,opt,name=data" json:"data,omitempty"`
-	Slave     *SlaveInfo `protobuf:"bytes,5,opt,name=slave" json:"slave,omitempty"`
-	Timestamp *float64   `protobuf:"fixed64,6,opt,name=timestamp" json:"timestamp,omitempty"`
+	TaskId      *string    `protobuf:"bytes,1,opt,name=task_id" json:"task_id,omitempty"`
+	ContainerId *string    `protobuf:"bytes,2,opt,name=container_id" json:"container_id,omitempty"`
+	State       *TaskState `protobuf:"varint,3,opt,name=state,enum=proto.TaskState" json:"state,omitempty"`
+	Message     *string    `protobuf:"bytes,4,opt,name=message" json:"message,omitempty"`
+	Data        []byte     `protobuf:"bytes,5,opt,name=data" json:"data,omitempty"`
+	Slave       *SlaveInfo `protobuf:"bytes,6,opt,name=slave" json:"slave,omitempty"`
+	Timestamp   *float64   `protobuf:"fixed64,7,opt,name=timestamp" json:"timestamp,omitempty"`
 	// Describes whether the task has been determined to be healthy
 	// (true) or unhealthy (false) according to the HealthCheck field in
 	// the command info.
-	Healthy          *bool  `protobuf:"varint,7,opt,name=healthy" json:"healthy,omitempty"`
+	Healthy          *bool  `protobuf:"varint,8,opt,name=healthy" json:"healthy,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -632,6 +633,13 @@ func (*TaskStatus) ProtoMessage() {}
 func (m *TaskStatus) GetTaskId() string {
 	if m != nil && m.TaskId != nil {
 		return *m.TaskId
+	}
+	return ""
+}
+
+func (m *TaskStatus) GetContainerId() string {
+	if m != nil && m.ContainerId != nil {
+		return *m.ContainerId
 	}
 	return ""
 }
@@ -1251,22 +1259,25 @@ type ContainerInfo struct {
 	Network      *ContainerInfo_Network       `protobuf:"varint,2,opt,name=network,enum=proto.ContainerInfo_Network,def=2" json:"network,omitempty"`
 	PortMappings []*ContainerInfo_PortMapping `protobuf:"bytes,3,rep,name=port_mappings" json:"port_mappings,omitempty"`
 	Privileged   *bool                        `protobuf:"varint,4,opt,name=privileged,def=0" json:"privileged,omitempty"`
-	// Allowing arbitrary parameters to be passed to docker CLI.
-	// Note that anything passed to this field is not guaranteed
-	// to be supported moving forward, as we might move away from
-	// the docker CLI.
-	Parameters *Parameters `protobuf:"bytes,5,opt,name=parameters" json:"parameters,omitempty"`
 	// With this flag set to true, the docker containerizer will
 	// pull the docker image from the registry even if the image
 	// is already downloaded on the slave.
-	ForcePullImage *bool               `protobuf:"varint,6,opt,name=force_pull_image" json:"force_pull_image,omitempty"`
-	Type           *ContainerInfo_Type `protobuf:"varint,7,opt,name=type,enum=proto.ContainerInfo_Type,def=1" json:"type,omitempty"`
-	Volumes        []*Volume           `protobuf:"bytes,8,rep,name=volumes" json:"volumes,omitempty"`
-	Hostname       *string             `protobuf:"bytes,9,opt,name=hostname" json:"hostname,omitempty"`
-	Environments   *Environment        `protobuf:"bytes,10,opt,name=environments" json:"environments,omitempty"`
+	ForcePullImage  *bool               `protobuf:"varint,5,opt,name=force_pull_image" json:"force_pull_image,omitempty"`
+	Type            *ContainerInfo_Type `protobuf:"varint,6,opt,name=type,enum=proto.ContainerInfo_Type,def=1" json:"type,omitempty"`
+	Volumes         []*Volume           `protobuf:"bytes,7,rep,name=volumes" json:"volumes,omitempty"`
+	Hostname        *string             `protobuf:"bytes,8,opt,name=hostname" json:"hostname,omitempty"`
+	DomainName      *string             `protobuf:"bytes,9,opt,name=domain_name" json:"domain_name,omitempty"`
+	EntryPoint      []string            `protobuf:"bytes,10,rep,name=entry_point" json:"entry_point,omitempty"`
+	Cmd             []string            `protobuf:"bytes,11,rep,name=cmd" json:"cmd,omitempty"`
+	SecurityOptions []string            `protobuf:"bytes,12,rep,name=security_options" json:"security_options,omitempty"`
+	OnBuild         []string            `protobuf:"bytes,13,rep,name=on_build" json:"on_build,omitempty"`
+	WorkingDir      *string             `protobuf:"bytes,14,opt,name=working_dir" json:"working_dir,omitempty"`
+	MacAddress      *string             `protobuf:"bytes,15,opt,name=mac_address" json:"mac_address,omitempty"`
+	VolumesFrom     *string             `protobuf:"bytes,16,opt,name=volumes_from" json:"volumes_from,omitempty"`
+	Environments    *Environment        `protobuf:"bytes,17,opt,name=environments" json:"environments,omitempty"`
 	// user name space ?
 	// probably we need to define a user message
-	User             *User  `protobuf:"bytes,11,opt,name=user" json:"user,omitempty"`
+	User             *User  `protobuf:"bytes,18,opt,name=user" json:"user,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -1305,13 +1316,6 @@ func (m *ContainerInfo) GetPrivileged() bool {
 	return Default_ContainerInfo_Privileged
 }
 
-func (m *ContainerInfo) GetParameters() *Parameters {
-	if m != nil {
-		return m.Parameters
-	}
-	return nil
-}
-
 func (m *ContainerInfo) GetForcePullImage() bool {
 	if m != nil && m.ForcePullImage != nil {
 		return *m.ForcePullImage
@@ -1336,6 +1340,62 @@ func (m *ContainerInfo) GetVolumes() []*Volume {
 func (m *ContainerInfo) GetHostname() string {
 	if m != nil && m.Hostname != nil {
 		return *m.Hostname
+	}
+	return ""
+}
+
+func (m *ContainerInfo) GetDomainName() string {
+	if m != nil && m.DomainName != nil {
+		return *m.DomainName
+	}
+	return ""
+}
+
+func (m *ContainerInfo) GetEntryPoint() []string {
+	if m != nil {
+		return m.EntryPoint
+	}
+	return nil
+}
+
+func (m *ContainerInfo) GetCmd() []string {
+	if m != nil {
+		return m.Cmd
+	}
+	return nil
+}
+
+func (m *ContainerInfo) GetSecurityOptions() []string {
+	if m != nil {
+		return m.SecurityOptions
+	}
+	return nil
+}
+
+func (m *ContainerInfo) GetOnBuild() []string {
+	if m != nil {
+		return m.OnBuild
+	}
+	return nil
+}
+
+func (m *ContainerInfo) GetWorkingDir() string {
+	if m != nil && m.WorkingDir != nil {
+		return *m.WorkingDir
+	}
+	return ""
+}
+
+func (m *ContainerInfo) GetMacAddress() string {
+	if m != nil && m.MacAddress != nil {
+		return *m.MacAddress
+	}
+	return ""
+}
+
+func (m *ContainerInfo) GetVolumesFrom() string {
+	if m != nil && m.VolumesFrom != nil {
+		return *m.VolumesFrom
 	}
 	return ""
 }
@@ -2499,6 +2559,29 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 			m.TaskId = &s
 			index = postIndex
 		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ContainerId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.ContainerId = &s
+			index = postIndex
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
 			}
@@ -2515,7 +2598,7 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 				}
 			}
 			m.State = &v
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
 			}
@@ -2538,7 +2621,7 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 			s := string(data[index:postIndex])
 			m.Message = &s
 			index = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
 			}
@@ -2560,7 +2643,7 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 			}
 			m.Data = append([]byte{}, data[index:postIndex]...)
 			index = postIndex
-		case 5:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Slave", wireType)
 			}
@@ -2587,7 +2670,7 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 6:
+		case 7:
 			if wireType != 1 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Timestamp", wireType)
 			}
@@ -2607,7 +2690,7 @@ func (m *TaskStatus) Unmarshal(data []byte) error {
 			v |= uint64(data[i-1]) << 56
 			v2 := math1.Float64frombits(v)
 			m.Timestamp = &v2
-		case 7:
+		case 8:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Healthy", wireType)
 			}
@@ -4379,33 +4462,6 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			b := bool(v != 0)
 			m.Privileged = &b
 		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Parameters", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				msglen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + msglen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Parameters == nil {
-				m.Parameters = &Parameters{}
-			}
-			if err := m.Parameters.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
-			index = postIndex
-		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ForcePullImage", wireType)
 			}
@@ -4423,7 +4479,7 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			}
 			b := bool(v != 0)
 			m.ForcePullImage = &b
-		case 7:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
 			}
@@ -4440,7 +4496,7 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 				}
 			}
 			m.Type = &v
-		case 8:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Volumes", wireType)
 			}
@@ -4463,7 +4519,7 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			m.Volumes = append(m.Volumes, &Volume{})
 			m.Volumes[len(m.Volumes)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
-		case 9:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Hostname", wireType)
 			}
@@ -4486,7 +4542,187 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 			s := string(data[index:postIndex])
 			m.Hostname = &s
 			index = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DomainName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.DomainName = &s
+			index = postIndex
 		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EntryPoint", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EntryPoint = append(m.EntryPoint, string(data[index:postIndex]))
+			index = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cmd", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Cmd = append(m.Cmd, string(data[index:postIndex]))
+			index = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecurityOptions", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SecurityOptions = append(m.SecurityOptions, string(data[index:postIndex]))
+			index = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OnBuild", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OnBuild = append(m.OnBuild, string(data[index:postIndex]))
+			index = postIndex
+		case 14:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkingDir", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.WorkingDir = &s
+			index = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MacAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.MacAddress = &s
+			index = postIndex
+		case 16:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VolumesFrom", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(data[index:postIndex])
+			m.VolumesFrom = &s
+			index = postIndex
+		case 17:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Environments", wireType)
 			}
@@ -4513,7 +4749,7 @@ func (m *ContainerInfo) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 11:
+		case 18:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field User", wireType)
 			}
@@ -5524,6 +5760,7 @@ func (this *TaskStatus) String() string {
 	}
 	s := strings.Join([]string{`&TaskStatus{`,
 		`TaskId:` + valueToStringGantryos(this.TaskId) + `,`,
+		`ContainerId:` + valueToStringGantryos(this.ContainerId) + `,`,
 		`State:` + valueToStringGantryos(this.State) + `,`,
 		`Message:` + valueToStringGantryos(this.Message) + `,`,
 		`Data:` + valueToStringGantryos(this.Data) + `,`,
@@ -5740,11 +5977,18 @@ func (this *ContainerInfo) String() string {
 		`Network:` + valueToStringGantryos(this.Network) + `,`,
 		`PortMappings:` + strings.Replace(fmt1.Sprintf("%v", this.PortMappings), "ContainerInfo_PortMapping", "ContainerInfo_PortMapping", 1) + `,`,
 		`Privileged:` + valueToStringGantryos(this.Privileged) + `,`,
-		`Parameters:` + strings.Replace(fmt1.Sprintf("%v", this.Parameters), "Parameters", "Parameters", 1) + `,`,
 		`ForcePullImage:` + valueToStringGantryos(this.ForcePullImage) + `,`,
 		`Type:` + valueToStringGantryos(this.Type) + `,`,
 		`Volumes:` + strings.Replace(fmt1.Sprintf("%v", this.Volumes), "Volume", "Volume", 1) + `,`,
 		`Hostname:` + valueToStringGantryos(this.Hostname) + `,`,
+		`DomainName:` + valueToStringGantryos(this.DomainName) + `,`,
+		`EntryPoint:` + fmt1.Sprintf("%v", this.EntryPoint) + `,`,
+		`Cmd:` + fmt1.Sprintf("%v", this.Cmd) + `,`,
+		`SecurityOptions:` + fmt1.Sprintf("%v", this.SecurityOptions) + `,`,
+		`OnBuild:` + fmt1.Sprintf("%v", this.OnBuild) + `,`,
+		`WorkingDir:` + valueToStringGantryos(this.WorkingDir) + `,`,
+		`MacAddress:` + valueToStringGantryos(this.MacAddress) + `,`,
+		`VolumesFrom:` + valueToStringGantryos(this.VolumesFrom) + `,`,
 		`Environments:` + strings.Replace(fmt1.Sprintf("%v", this.Environments), "Environment", "Environment", 1) + `,`,
 		`User:` + strings.Replace(fmt1.Sprintf("%v", this.User), "User", "User", 1) + `,`,
 		`XXX_unrecognized:` + fmt1.Sprintf("%v", this.XXX_unrecognized) + `,`,
@@ -6034,6 +6278,10 @@ func (m *TaskStatus) Size() (n int) {
 	_ = l
 	if m.TaskId != nil {
 		l = len(*m.TaskId)
+		n += 1 + l + sovGantryos(uint64(l))
+	}
+	if m.ContainerId != nil {
+		l = len(*m.ContainerId)
 		n += 1 + l + sovGantryos(uint64(l))
 	}
 	if m.State != nil {
@@ -6392,10 +6640,6 @@ func (m *ContainerInfo) Size() (n int) {
 	if m.Privileged != nil {
 		n += 2
 	}
-	if m.Parameters != nil {
-		l = m.Parameters.Size()
-		n += 1 + l + sovGantryos(uint64(l))
-	}
 	if m.ForcePullImage != nil {
 		n += 2
 	}
@@ -6412,13 +6656,53 @@ func (m *ContainerInfo) Size() (n int) {
 		l = len(*m.Hostname)
 		n += 1 + l + sovGantryos(uint64(l))
 	}
+	if m.DomainName != nil {
+		l = len(*m.DomainName)
+		n += 1 + l + sovGantryos(uint64(l))
+	}
+	if len(m.EntryPoint) > 0 {
+		for _, s := range m.EntryPoint {
+			l = len(s)
+			n += 1 + l + sovGantryos(uint64(l))
+		}
+	}
+	if len(m.Cmd) > 0 {
+		for _, s := range m.Cmd {
+			l = len(s)
+			n += 1 + l + sovGantryos(uint64(l))
+		}
+	}
+	if len(m.SecurityOptions) > 0 {
+		for _, s := range m.SecurityOptions {
+			l = len(s)
+			n += 1 + l + sovGantryos(uint64(l))
+		}
+	}
+	if len(m.OnBuild) > 0 {
+		for _, s := range m.OnBuild {
+			l = len(s)
+			n += 1 + l + sovGantryos(uint64(l))
+		}
+	}
+	if m.WorkingDir != nil {
+		l = len(*m.WorkingDir)
+		n += 1 + l + sovGantryos(uint64(l))
+	}
+	if m.MacAddress != nil {
+		l = len(*m.MacAddress)
+		n += 1 + l + sovGantryos(uint64(l))
+	}
+	if m.VolumesFrom != nil {
+		l = len(*m.VolumesFrom)
+		n += 2 + l + sovGantryos(uint64(l))
+	}
 	if m.Environments != nil {
 		l = m.Environments.Size()
-		n += 1 + l + sovGantryos(uint64(l))
+		n += 2 + l + sovGantryos(uint64(l))
 	}
 	if m.User != nil {
 		l = m.User.Size()
-		n += 1 + l + sovGantryos(uint64(l))
+		n += 2 + l + sovGantryos(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -6771,17 +7055,21 @@ func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 		this.TaskId = &v20
 	}
 	if r.Intn(10) != 0 {
-		v21 := TaskState([]int32{0, 1, 2, 3, 4, 5, 6, 7}[r.Intn(8)])
-		this.State = &v21
+		v21 := randStringGantryos(r)
+		this.ContainerId = &v21
 	}
 	if r.Intn(10) != 0 {
-		v22 := randStringGantryos(r)
-		this.Message = &v22
+		v22 := TaskState([]int32{0, 1, 2, 3, 4, 5, 6, 7}[r.Intn(8)])
+		this.State = &v22
 	}
 	if r.Intn(10) != 0 {
-		v23 := r.Intn(100)
-		this.Data = make([]byte, v23)
-		for i := 0; i < v23; i++ {
+		v23 := randStringGantryos(r)
+		this.Message = &v23
+	}
+	if r.Intn(10) != 0 {
+		v24 := r.Intn(100)
+		this.Data = make([]byte, v24)
+		for i := 0; i < v24; i++ {
 			this.Data[i] = byte(r.Intn(256))
 		}
 	}
@@ -6789,18 +7077,18 @@ func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 		this.Slave = NewPopulatedSlaveInfo(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v24 := r.Float64()
+		v25 := r.Float64()
 		if r.Intn(2) == 0 {
-			v24 *= -1
+			v25 *= -1
 		}
-		this.Timestamp = &v24
+		this.Timestamp = &v25
 	}
 	if r.Intn(10) != 0 {
-		v25 := bool(r.Intn(2) == 0)
-		this.Healthy = &v25
+		v26 := bool(r.Intn(2) == 0)
+		this.Healthy = &v26
 	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedGantryos(r, 8)
+		this.XXX_unrecognized = randUnrecognizedGantryos(r, 9)
 	}
 	return this
 }
@@ -6808,15 +7096,15 @@ func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 func NewPopulatedFilters(r randyGantryos, easy bool) *Filters {
 	this := &Filters{}
 	if r.Intn(10) != 0 {
-		v26 := r.Float64()
+		v27 := r.Float64()
 		if r.Intn(2) == 0 {
-			v26 *= -1
+			v27 *= -1
 		}
-		this.RefuseSeconds = &v26
+		this.RefuseSeconds = &v27
 	}
 	if r.Intn(10) != 0 {
-		v27 := bool(r.Intn(2) == 0)
-		this.Rebalance = &v27
+		v28 := bool(r.Intn(2) == 0)
+		this.Rebalance = &v28
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -6827,9 +7115,9 @@ func NewPopulatedFilters(r randyGantryos, easy bool) *Filters {
 func NewPopulatedEnvironment(r randyGantryos, easy bool) *Environment {
 	this := &Environment{}
 	if r.Intn(10) != 0 {
-		v28 := r.Intn(10)
-		this.Variables = make([]*Environment_Variable, v28)
-		for i := 0; i < v28; i++ {
+		v29 := r.Intn(10)
+		this.Variables = make([]*Environment_Variable, v29)
+		for i := 0; i < v29; i++ {
 			this.Variables[i] = NewPopulatedEnvironment_Variable(r, easy)
 		}
 	}
@@ -6842,12 +7130,12 @@ func NewPopulatedEnvironment(r randyGantryos, easy bool) *Environment {
 func NewPopulatedEnvironment_Variable(r randyGantryos, easy bool) *Environment_Variable {
 	this := &Environment_Variable{}
 	if r.Intn(10) != 0 {
-		v29 := randStringGantryos(r)
-		this.Name = &v29
+		v30 := randStringGantryos(r)
+		this.Name = &v30
 	}
 	if r.Intn(10) != 0 {
-		v30 := randStringGantryos(r)
-		this.Value = &v30
+		v31 := randStringGantryos(r)
+		this.Value = &v31
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -6858,12 +7146,12 @@ func NewPopulatedEnvironment_Variable(r randyGantryos, easy bool) *Environment_V
 func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 	this := &Resource{}
 	if r.Intn(10) != 0 {
-		v31 := ResourceType([]int32{0, 1, 2, 3, 4, 5}[r.Intn(6)])
-		this.ResourceType = &v31
+		v32 := ResourceType([]int32{0, 1, 2, 3, 4, 5}[r.Intn(6)])
+		this.ResourceType = &v32
 	}
 	if r.Intn(10) != 0 {
-		v32 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
-		this.Type = &v32
+		v33 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
+		this.Type = &v33
 	}
 	if r.Intn(10) != 0 {
 		this.Scalar = NewPopulatedValue_Scalar(r, easy)
@@ -6875,8 +7163,8 @@ func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 		this.Set = NewPopulatedValue_Set(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v33 := randStringGantryos(r)
-		this.Role = &v33
+		v34 := randStringGantryos(r)
+		this.Role = &v34
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 7)
@@ -6887,8 +7175,8 @@ func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 func NewPopulatedValue(r randyGantryos, easy bool) *Value {
 	this := &Value{}
 	if r.Intn(10) != 0 {
-		v34 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
-		this.Type = &v34
+		v35 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
+		this.Type = &v35
 	}
 	if r.Intn(10) != 0 {
 		this.Scalar = NewPopulatedValue_Scalar(r, easy)
@@ -6911,11 +7199,11 @@ func NewPopulatedValue(r randyGantryos, easy bool) *Value {
 func NewPopulatedValue_Scalar(r randyGantryos, easy bool) *Value_Scalar {
 	this := &Value_Scalar{}
 	if r.Intn(10) != 0 {
-		v35 := r.Float64()
+		v36 := r.Float64()
 		if r.Intn(2) == 0 {
-			v35 *= -1
+			v36 *= -1
 		}
-		this.Value = &v35
+		this.Value = &v36
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 2)
@@ -6926,12 +7214,12 @@ func NewPopulatedValue_Scalar(r randyGantryos, easy bool) *Value_Scalar {
 func NewPopulatedValue_Range(r randyGantryos, easy bool) *Value_Range {
 	this := &Value_Range{}
 	if r.Intn(10) != 0 {
-		v36 := uint64(r.Uint32())
-		this.Begin = &v36
+		v37 := uint64(r.Uint32())
+		this.Begin = &v37
 	}
 	if r.Intn(10) != 0 {
-		v37 := uint64(r.Uint32())
-		this.End = &v37
+		v38 := uint64(r.Uint32())
+		this.End = &v38
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -6942,9 +7230,9 @@ func NewPopulatedValue_Range(r randyGantryos, easy bool) *Value_Range {
 func NewPopulatedValue_Ranges(r randyGantryos, easy bool) *Value_Ranges {
 	this := &Value_Ranges{}
 	if r.Intn(10) != 0 {
-		v38 := r.Intn(10)
-		this.Range = make([]*Value_Range, v38)
-		for i := 0; i < v38; i++ {
+		v39 := r.Intn(10)
+		this.Range = make([]*Value_Range, v39)
+		for i := 0; i < v39; i++ {
 			this.Range[i] = NewPopulatedValue_Range(r, easy)
 		}
 	}
@@ -6957,9 +7245,9 @@ func NewPopulatedValue_Ranges(r randyGantryos, easy bool) *Value_Ranges {
 func NewPopulatedValue_Set(r randyGantryos, easy bool) *Value_Set {
 	this := &Value_Set{}
 	if r.Intn(10) != 0 {
-		v39 := r.Intn(10)
-		this.Item = make([]string, v39)
-		for i := 0; i < v39; i++ {
+		v40 := r.Intn(10)
+		this.Item = make([]string, v40)
+		for i := 0; i < v40; i++ {
 			this.Item[i] = randStringGantryos(r)
 		}
 	}
@@ -6972,8 +7260,8 @@ func NewPopulatedValue_Set(r randyGantryos, easy bool) *Value_Set {
 func NewPopulatedValue_Text(r randyGantryos, easy bool) *Value_Text {
 	this := &Value_Text{}
 	if r.Intn(10) != 0 {
-		v40 := randStringGantryos(r)
-		this.Value = &v40
+		v41 := randStringGantryos(r)
+		this.Value = &v41
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 2)
@@ -6987,36 +7275,36 @@ func NewPopulatedHealthCheck(r randyGantryos, easy bool) *HealthCheck {
 		this.Http = NewPopulatedHealthCheck_HTTP(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v41 := r.Float64()
-		if r.Intn(2) == 0 {
-			v41 *= -1
-		}
-		this.DelaySeconds = &v41
-	}
-	if r.Intn(10) != 0 {
 		v42 := r.Float64()
 		if r.Intn(2) == 0 {
 			v42 *= -1
 		}
-		this.IntervalSeconds = &v42
+		this.DelaySeconds = &v42
 	}
 	if r.Intn(10) != 0 {
 		v43 := r.Float64()
 		if r.Intn(2) == 0 {
 			v43 *= -1
 		}
-		this.TimeoutSeconds = &v43
+		this.IntervalSeconds = &v43
 	}
 	if r.Intn(10) != 0 {
-		v44 := r.Uint32()
-		this.Failures = &v44
-	}
-	if r.Intn(10) != 0 {
-		v45 := r.Float64()
+		v44 := r.Float64()
 		if r.Intn(2) == 0 {
-			v45 *= -1
+			v44 *= -1
 		}
-		this.GracePeriodSeconds = &v45
+		this.TimeoutSeconds = &v44
+	}
+	if r.Intn(10) != 0 {
+		v45 := r.Uint32()
+		this.Failures = &v45
+	}
+	if r.Intn(10) != 0 {
+		v46 := r.Float64()
+		if r.Intn(2) == 0 {
+			v46 *= -1
+		}
+		this.GracePeriodSeconds = &v46
 	}
 	if r.Intn(10) != 0 {
 		this.Command = NewPopulatedCommandInfo(r, easy)
@@ -7030,17 +7318,17 @@ func NewPopulatedHealthCheck(r randyGantryos, easy bool) *HealthCheck {
 func NewPopulatedHealthCheck_HTTP(r randyGantryos, easy bool) *HealthCheck_HTTP {
 	this := &HealthCheck_HTTP{}
 	if r.Intn(10) != 0 {
-		v46 := r.Uint32()
-		this.Port = &v46
+		v47 := r.Uint32()
+		this.Port = &v47
 	}
 	if r.Intn(10) != 0 {
-		v47 := randStringGantryos(r)
-		this.Path = &v47
+		v48 := randStringGantryos(r)
+		this.Path = &v48
 	}
 	if r.Intn(10) != 0 {
-		v48 := r.Intn(100)
-		this.Statuses = make([]uint32, v48)
-		for i := 0; i < v48; i++ {
+		v49 := r.Intn(100)
+		this.Statuses = make([]uint32, v49)
+		for i := 0; i < v49; i++ {
 			this.Statuses[i] = r.Uint32()
 		}
 	}
@@ -7053,9 +7341,9 @@ func NewPopulatedHealthCheck_HTTP(r randyGantryos, easy bool) *HealthCheck_HTTP 
 func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 	this := &CommandInfo{}
 	if r.Intn(10) != 0 {
-		v49 := r.Intn(10)
-		this.Uris = make([]*CommandInfo_URI, v49)
-		for i := 0; i < v49; i++ {
+		v50 := r.Intn(10)
+		this.Uris = make([]*CommandInfo_URI, v50)
+		for i := 0; i < v50; i++ {
 			this.Uris[i] = NewPopulatedCommandInfo_URI(r, easy)
 		}
 	}
@@ -7063,26 +7351,26 @@ func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 		this.Environment = NewPopulatedEnvironment(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v50 := bool(r.Intn(2) == 0)
-		this.Shell = &v50
+		v51 := bool(r.Intn(2) == 0)
+		this.Shell = &v51
 	}
 	if r.Intn(10) != 0 {
-		v51 := randStringGantryos(r)
-		this.Value = &v51
+		v52 := randStringGantryos(r)
+		this.Value = &v52
 	}
 	if r.Intn(10) != 0 {
-		v52 := r.Intn(10)
-		this.Arguments = make([]string, v52)
-		for i := 0; i < v52; i++ {
+		v53 := r.Intn(10)
+		this.Arguments = make([]string, v53)
+		for i := 0; i < v53; i++ {
 			this.Arguments[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v53 := r.Float64()
+		v54 := r.Float64()
 		if r.Intn(2) == 0 {
-			v53 *= -1
+			v54 *= -1
 		}
-		this.GracePeriodSeconds = &v53
+		this.GracePeriodSeconds = &v54
 	}
 	if r.Intn(10) != 0 {
 		this.User = NewPopulatedUser(r, easy)
@@ -7096,16 +7384,16 @@ func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 func NewPopulatedCommandInfo_URI(r randyGantryos, easy bool) *CommandInfo_URI {
 	this := &CommandInfo_URI{}
 	if r.Intn(10) != 0 {
-		v54 := randStringGantryos(r)
-		this.Value = &v54
-	}
-	if r.Intn(10) != 0 {
-		v55 := bool(r.Intn(2) == 0)
-		this.Executable = &v55
+		v55 := randStringGantryos(r)
+		this.Value = &v55
 	}
 	if r.Intn(10) != 0 {
 		v56 := bool(r.Intn(2) == 0)
-		this.Extract = &v56
+		this.Executable = &v56
+	}
+	if r.Intn(10) != 0 {
+		v57 := bool(r.Intn(2) == 0)
+		this.Extract = &v57
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7116,20 +7404,20 @@ func NewPopulatedCommandInfo_URI(r randyGantryos, easy bool) *CommandInfo_URI {
 func NewPopulatedVolume(r randyGantryos, easy bool) *Volume {
 	this := &Volume{}
 	if r.Intn(10) != 0 {
-		v57 := randStringGantryos(r)
-		this.ContainerPath = &v57
-	}
-	if r.Intn(10) != 0 {
 		v58 := randStringGantryos(r)
-		this.HostPath = &v58
+		this.ContainerPath = &v58
 	}
 	if r.Intn(10) != 0 {
-		v59 := bool(r.Intn(2) == 0)
-		this.Persistent = &v59
+		v59 := randStringGantryos(r)
+		this.HostPath = &v59
 	}
 	if r.Intn(10) != 0 {
-		v60 := Volume_Mode([]int32{1, 2}[r.Intn(2)])
-		this.Mode = &v60
+		v60 := bool(r.Intn(2) == 0)
+		this.Persistent = &v60
+	}
+	if r.Intn(10) != 0 {
+		v61 := Volume_Mode([]int32{1, 2}[r.Intn(2)])
+		this.Mode = &v61
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 5)
@@ -7140,45 +7428,86 @@ func NewPopulatedVolume(r randyGantryos, easy bool) *Volume {
 func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 	this := &ContainerInfo{}
 	if r.Intn(10) != 0 {
-		v61 := randStringGantryos(r)
-		this.Image = &v61
+		v62 := randStringGantryos(r)
+		this.Image = &v62
 	}
 	if r.Intn(10) != 0 {
-		v62 := ContainerInfo_Network([]int32{0, 1, 2, 3, 4}[r.Intn(5)])
-		this.Network = &v62
+		v63 := ContainerInfo_Network([]int32{0, 1, 2, 3, 4}[r.Intn(5)])
+		this.Network = &v63
 	}
 	if r.Intn(10) != 0 {
-		v63 := r.Intn(10)
-		this.PortMappings = make([]*ContainerInfo_PortMapping, v63)
-		for i := 0; i < v63; i++ {
+		v64 := r.Intn(10)
+		this.PortMappings = make([]*ContainerInfo_PortMapping, v64)
+		for i := 0; i < v64; i++ {
 			this.PortMappings[i] = NewPopulatedContainerInfo_PortMapping(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v64 := bool(r.Intn(2) == 0)
-		this.Privileged = &v64
-	}
-	if r.Intn(10) != 0 {
-		this.Parameters = NewPopulatedParameters(r, easy)
-	}
-	if r.Intn(10) != 0 {
 		v65 := bool(r.Intn(2) == 0)
-		this.ForcePullImage = &v65
+		this.Privileged = &v65
 	}
 	if r.Intn(10) != 0 {
-		v66 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
-		this.Type = &v66
+		v66 := bool(r.Intn(2) == 0)
+		this.ForcePullImage = &v66
 	}
 	if r.Intn(10) != 0 {
-		v67 := r.Intn(10)
-		this.Volumes = make([]*Volume, v67)
-		for i := 0; i < v67; i++ {
+		v67 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
+		this.Type = &v67
+	}
+	if r.Intn(10) != 0 {
+		v68 := r.Intn(10)
+		this.Volumes = make([]*Volume, v68)
+		for i := 0; i < v68; i++ {
 			this.Volumes[i] = NewPopulatedVolume(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v68 := randStringGantryos(r)
-		this.Hostname = &v68
+		v69 := randStringGantryos(r)
+		this.Hostname = &v69
+	}
+	if r.Intn(10) != 0 {
+		v70 := randStringGantryos(r)
+		this.DomainName = &v70
+	}
+	if r.Intn(10) != 0 {
+		v71 := r.Intn(10)
+		this.EntryPoint = make([]string, v71)
+		for i := 0; i < v71; i++ {
+			this.EntryPoint[i] = randStringGantryos(r)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v72 := r.Intn(10)
+		this.Cmd = make([]string, v72)
+		for i := 0; i < v72; i++ {
+			this.Cmd[i] = randStringGantryos(r)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v73 := r.Intn(10)
+		this.SecurityOptions = make([]string, v73)
+		for i := 0; i < v73; i++ {
+			this.SecurityOptions[i] = randStringGantryos(r)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v74 := r.Intn(10)
+		this.OnBuild = make([]string, v74)
+		for i := 0; i < v74; i++ {
+			this.OnBuild[i] = randStringGantryos(r)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v75 := randStringGantryos(r)
+		this.WorkingDir = &v75
+	}
+	if r.Intn(10) != 0 {
+		v76 := randStringGantryos(r)
+		this.MacAddress = &v76
+	}
+	if r.Intn(10) != 0 {
+		v77 := randStringGantryos(r)
+		this.VolumesFrom = &v77
 	}
 	if r.Intn(10) != 0 {
 		this.Environments = NewPopulatedEnvironment(r, easy)
@@ -7187,20 +7516,20 @@ func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 		this.User = NewPopulatedUser(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedGantryos(r, 12)
+		this.XXX_unrecognized = randUnrecognizedGantryos(r, 19)
 	}
 	return this
 }
 
 func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *ContainerInfo_PortMapping {
 	this := &ContainerInfo_PortMapping{}
-	v69 := r.Uint32()
-	this.HostPort = &v69
-	v70 := r.Uint32()
-	this.ContainerPort = &v70
+	v78 := r.Uint32()
+	this.HostPort = &v78
+	v79 := r.Uint32()
+	this.ContainerPort = &v79
 	if r.Intn(10) != 0 {
-		v71 := randStringGantryos(r)
-		this.Protocol = &v71
+		v80 := randStringGantryos(r)
+		this.Protocol = &v80
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7211,22 +7540,22 @@ func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *Containe
 func NewPopulatedUser(r randyGantryos, easy bool) *User {
 	this := &User{}
 	if r.Intn(10) != 0 {
-		v72 := randStringGantryos(r)
-		this.Name = &v72
+		v81 := randStringGantryos(r)
+		this.Name = &v81
 	}
 	if r.Intn(10) != 0 {
-		v73 := r.Int31()
+		v82 := r.Int31()
 		if r.Intn(2) == 0 {
-			v73 *= -1
+			v82 *= -1
 		}
-		this.Uid = &v73
+		this.Uid = &v82
 	}
 	if r.Intn(10) != 0 {
-		v74 := r.Int31()
+		v83 := r.Int31()
 		if r.Intn(2) == 0 {
-			v74 *= -1
+			v83 *= -1
 		}
-		this.Gid = &v74
+		this.Gid = &v83
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7236,10 +7565,10 @@ func NewPopulatedUser(r randyGantryos, easy bool) *User {
 
 func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 	this := &Parameter{}
-	v75 := randStringGantryos(r)
-	this.Key = &v75
-	v76 := randStringGantryos(r)
-	this.Value = &v76
+	v84 := randStringGantryos(r)
+	this.Key = &v84
+	v85 := randStringGantryos(r)
+	this.Value = &v85
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
 	}
@@ -7249,9 +7578,9 @@ func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 	this := &Parameters{}
 	if r.Intn(10) != 0 {
-		v77 := r.Intn(10)
-		this.Parameter = make([]*Parameter, v77)
-		for i := 0; i < v77; i++ {
+		v86 := r.Intn(10)
+		this.Parameter = make([]*Parameter, v86)
+		for i := 0; i < v86; i++ {
 			this.Parameter[i] = NewPopulatedParameter(r, easy)
 		}
 	}
@@ -7264,9 +7593,9 @@ func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 	this := &Labels{}
 	if r.Intn(10) != 0 {
-		v78 := r.Intn(10)
-		this.Labels = make([]*Label, v78)
-		for i := 0; i < v78; i++ {
+		v87 := r.Intn(10)
+		this.Labels = make([]*Label, v87)
+		for i := 0; i < v87; i++ {
 			this.Labels[i] = NewPopulatedLabel(r, easy)
 		}
 	}
@@ -7278,11 +7607,11 @@ func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 
 func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 	this := &Label{}
-	v79 := randStringGantryos(r)
-	this.Key = &v79
+	v88 := randStringGantryos(r)
+	this.Key = &v88
 	if r.Intn(10) != 0 {
-		v80 := randStringGantryos(r)
-		this.Value = &v80
+		v89 := randStringGantryos(r)
+		this.Value = &v89
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7292,15 +7621,15 @@ func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 
 func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 	this := &Port{}
-	v81 := r.Uint32()
-	this.Number = &v81
+	v90 := r.Uint32()
+	this.Number = &v90
 	if r.Intn(10) != 0 {
-		v82 := randStringGantryos(r)
-		this.Name = &v82
+		v91 := randStringGantryos(r)
+		this.Name = &v91
 	}
 	if r.Intn(10) != 0 {
-		v83 := randStringGantryos(r)
-		this.Protocol = &v83
+		v92 := randStringGantryos(r)
+		this.Protocol = &v92
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7311,9 +7640,9 @@ func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 	this := &Ports{}
 	if r.Intn(10) != 0 {
-		v84 := r.Intn(10)
-		this.Ports = make([]*Port, v84)
-		for i := 0; i < v84; i++ {
+		v93 := r.Intn(10)
+		this.Ports = make([]*Port, v93)
+		for i := 0; i < v93; i++ {
 			this.Ports[i] = NewPopulatedPort(r, easy)
 		}
 	}
@@ -7326,24 +7655,24 @@ func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 func NewPopulatedDiscoveryInfo(r randyGantryos, easy bool) *DiscoveryInfo {
 	this := &DiscoveryInfo{}
 	if r.Intn(10) != 0 {
-		v85 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
-		this.Visibility = &v85
+		v94 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
+		this.Visibility = &v94
 	}
 	if r.Intn(10) != 0 {
-		v86 := randStringGantryos(r)
-		this.Name = &v86
+		v95 := randStringGantryos(r)
+		this.Name = &v95
 	}
 	if r.Intn(10) != 0 {
-		v87 := randStringGantryos(r)
-		this.Environment = &v87
+		v96 := randStringGantryos(r)
+		this.Environment = &v96
 	}
 	if r.Intn(10) != 0 {
-		v88 := randStringGantryos(r)
-		this.Location = &v88
+		v97 := randStringGantryos(r)
+		this.Location = &v97
 	}
 	if r.Intn(10) != 0 {
-		v89 := randStringGantryos(r)
-		this.Version = &v89
+		v98 := randStringGantryos(r)
+		this.Version = &v98
 	}
 	if r.Intn(10) != 0 {
 		this.Ports = NewPopulatedPorts(r, easy)
@@ -7374,9 +7703,9 @@ func randUTF8RuneGantryos(r randyGantryos) rune {
 	return res
 }
 func randStringGantryos(r randyGantryos) string {
-	v90 := r.Intn(100)
-	tmps := make([]rune, v90)
-	for i := 0; i < v90; i++ {
+	v99 := r.Intn(100)
+	tmps := make([]rune, v99)
+	for i := 0; i < v99; i++ {
 		tmps[i] = randUTF8RuneGantryos(r)
 	}
 	return string(tmps)
@@ -7398,11 +7727,11 @@ func randFieldGantryos(data []byte, r randyGantryos, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
-		v91 := r.Int63()
+		v100 := r.Int63()
 		if r.Intn(2) == 0 {
-			v91 *= -1
+			v100 *= -1
 		}
-		data = encodeVarintPopulateGantryos(data, uint64(v91))
+		data = encodeVarintPopulateGantryos(data, uint64(v100))
 	case 1:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -7769,25 +8098,31 @@ func (m *TaskStatus) MarshalTo(data []byte) (n int, err error) {
 		i = encodeVarintGantryos(data, i, uint64(len(*m.TaskId)))
 		i += copy(data[i:], *m.TaskId)
 	}
+	if m.ContainerId != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintGantryos(data, i, uint64(len(*m.ContainerId)))
+		i += copy(data[i:], *m.ContainerId)
+	}
 	if m.State != nil {
-		data[i] = 0x10
+		data[i] = 0x18
 		i++
 		i = encodeVarintGantryos(data, i, uint64(*m.State))
 	}
 	if m.Message != nil {
-		data[i] = 0x1a
+		data[i] = 0x22
 		i++
 		i = encodeVarintGantryos(data, i, uint64(len(*m.Message)))
 		i += copy(data[i:], *m.Message)
 	}
 	if m.Data != nil {
-		data[i] = 0x22
+		data[i] = 0x2a
 		i++
 		i = encodeVarintGantryos(data, i, uint64(len(m.Data)))
 		i += copy(data[i:], m.Data)
 	}
 	if m.Slave != nil {
-		data[i] = 0x2a
+		data[i] = 0x32
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Slave.Size()))
 		n8, err := m.Slave.MarshalTo(data[i:])
@@ -7797,12 +8132,12 @@ func (m *TaskStatus) MarshalTo(data []byte) (n int, err error) {
 		i += n8
 	}
 	if m.Timestamp != nil {
-		data[i] = 0x31
+		data[i] = 0x39
 		i++
 		i = encodeFixed64Gantryos(data, i, uint64(math2.Float64bits(*m.Timestamp)))
 	}
 	if m.Healthy != nil {
-		data[i] = 0x38
+		data[i] = 0x40
 		i++
 		if *m.Healthy {
 			data[i] = 1
@@ -8542,18 +8877,8 @@ func (m *ContainerInfo) MarshalTo(data []byte) (n int, err error) {
 		}
 		i++
 	}
-	if m.Parameters != nil {
-		data[i] = 0x2a
-		i++
-		i = encodeVarintGantryos(data, i, uint64(m.Parameters.Size()))
-		n20, err := m.Parameters.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n20
-	}
 	if m.ForcePullImage != nil {
-		data[i] = 0x30
+		data[i] = 0x28
 		i++
 		if *m.ForcePullImage {
 			data[i] = 1
@@ -8563,13 +8888,13 @@ func (m *ContainerInfo) MarshalTo(data []byte) (n int, err error) {
 		i++
 	}
 	if m.Type != nil {
-		data[i] = 0x38
+		data[i] = 0x30
 		i++
 		i = encodeVarintGantryos(data, i, uint64(*m.Type))
 	}
 	if len(m.Volumes) > 0 {
 		for _, msg := range m.Volumes {
-			data[i] = 0x42
+			data[i] = 0x3a
 			i++
 			i = encodeVarintGantryos(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -8580,30 +8905,120 @@ func (m *ContainerInfo) MarshalTo(data []byte) (n int, err error) {
 		}
 	}
 	if m.Hostname != nil {
-		data[i] = 0x4a
+		data[i] = 0x42
 		i++
 		i = encodeVarintGantryos(data, i, uint64(len(*m.Hostname)))
 		i += copy(data[i:], *m.Hostname)
 	}
+	if m.DomainName != nil {
+		data[i] = 0x4a
+		i++
+		i = encodeVarintGantryos(data, i, uint64(len(*m.DomainName)))
+		i += copy(data[i:], *m.DomainName)
+	}
+	if len(m.EntryPoint) > 0 {
+		for _, s := range m.EntryPoint {
+			data[i] = 0x52
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.Cmd) > 0 {
+		for _, s := range m.Cmd {
+			data[i] = 0x5a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.SecurityOptions) > 0 {
+		for _, s := range m.SecurityOptions {
+			data[i] = 0x62
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.OnBuild) > 0 {
+		for _, s := range m.OnBuild {
+			data[i] = 0x6a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if m.WorkingDir != nil {
+		data[i] = 0x72
+		i++
+		i = encodeVarintGantryos(data, i, uint64(len(*m.WorkingDir)))
+		i += copy(data[i:], *m.WorkingDir)
+	}
+	if m.MacAddress != nil {
+		data[i] = 0x7a
+		i++
+		i = encodeVarintGantryos(data, i, uint64(len(*m.MacAddress)))
+		i += copy(data[i:], *m.MacAddress)
+	}
+	if m.VolumesFrom != nil {
+		data[i] = 0x82
+		i++
+		data[i] = 0x1
+		i++
+		i = encodeVarintGantryos(data, i, uint64(len(*m.VolumesFrom)))
+		i += copy(data[i:], *m.VolumesFrom)
+	}
 	if m.Environments != nil {
-		data[i] = 0x52
+		data[i] = 0x8a
+		i++
+		data[i] = 0x1
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Environments.Size()))
-		n21, err := m.Environments.MarshalTo(data[i:])
+		n20, err := m.Environments.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n20
+	}
+	if m.User != nil {
+		data[i] = 0x92
+		i++
+		data[i] = 0x1
+		i++
+		i = encodeVarintGantryos(data, i, uint64(m.User.Size()))
+		n21, err := m.User.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n21
-	}
-	if m.User != nil {
-		data[i] = 0x5a
-		i++
-		i = encodeVarintGantryos(data, i, uint64(m.User.Size()))
-		n22, err := m.User.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n22
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -8936,21 +9351,21 @@ func (m *DiscoveryInfo) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0x32
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Ports.Size()))
-		n23, err := m.Ports.MarshalTo(data[i:])
+		n22, err := m.Ports.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n23
+		i += n22
 	}
 	if m.Labels != nil {
 		data[i] = 0x3a
 		i++
 		i = encodeVarintGantryos(data, i, uint64(m.Labels.Size()))
-		n24, err := m.Labels.MarshalTo(data[i:])
+		n23, err := m.Labels.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n24
+		i += n23
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -9057,6 +9472,7 @@ func (this *TaskStatus) GoString() string {
 	}
 	s := strings1.Join([]string{`&proto.TaskStatus{` +
 		`TaskId:` + valueToGoStringGantryos(this.TaskId, "string"),
+		`ContainerId:` + valueToGoStringGantryos(this.ContainerId, "string"),
 		`State:` + valueToGoStringGantryos(this.State, "proto.TaskState"),
 		`Message:` + valueToGoStringGantryos(this.Message, "string"),
 		`Data:` + valueToGoStringGantryos(this.Data, "byte"),
@@ -9241,11 +9657,18 @@ func (this *ContainerInfo) GoString() string {
 		`Network:` + valueToGoStringGantryos(this.Network, "proto.ContainerInfo_Network"),
 		`PortMappings:` + fmt2.Sprintf("%#v", this.PortMappings),
 		`Privileged:` + valueToGoStringGantryos(this.Privileged, "bool"),
-		`Parameters:` + fmt2.Sprintf("%#v", this.Parameters),
 		`ForcePullImage:` + valueToGoStringGantryos(this.ForcePullImage, "bool"),
 		`Type:` + valueToGoStringGantryos(this.Type, "proto.ContainerInfo_Type"),
 		`Volumes:` + fmt2.Sprintf("%#v", this.Volumes),
 		`Hostname:` + valueToGoStringGantryos(this.Hostname, "string"),
+		`DomainName:` + valueToGoStringGantryos(this.DomainName, "string"),
+		`EntryPoint:` + fmt2.Sprintf("%#v", this.EntryPoint),
+		`Cmd:` + fmt2.Sprintf("%#v", this.Cmd),
+		`SecurityOptions:` + fmt2.Sprintf("%#v", this.SecurityOptions),
+		`OnBuild:` + fmt2.Sprintf("%#v", this.OnBuild),
+		`WorkingDir:` + valueToGoStringGantryos(this.WorkingDir, "string"),
+		`MacAddress:` + valueToGoStringGantryos(this.MacAddress, "string"),
+		`VolumesFrom:` + valueToGoStringGantryos(this.VolumesFrom, "string"),
 		`Environments:` + fmt2.Sprintf("%#v", this.Environments),
 		`User:` + fmt2.Sprintf("%#v", this.User),
 		`XXX_unrecognized:` + fmt2.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
@@ -10024,6 +10447,15 @@ func (this *TaskStatus) VerboseEqual(that interface{}) error {
 	} else if that1.TaskId != nil {
 		return fmt3.Errorf("TaskId this(%v) Not Equal that(%v)", this.TaskId, that1.TaskId)
 	}
+	if this.ContainerId != nil && that1.ContainerId != nil {
+		if *this.ContainerId != *that1.ContainerId {
+			return fmt3.Errorf("ContainerId this(%v) Not Equal that(%v)", *this.ContainerId, *that1.ContainerId)
+		}
+	} else if this.ContainerId != nil {
+		return fmt3.Errorf("this.ContainerId == nil && that.ContainerId != nil")
+	} else if that1.ContainerId != nil {
+		return fmt3.Errorf("ContainerId this(%v) Not Equal that(%v)", this.ContainerId, that1.ContainerId)
+	}
 	if this.State != nil && that1.State != nil {
 		if *this.State != *that1.State {
 			return fmt3.Errorf("State this(%v) Not Equal that(%v)", *this.State, *that1.State)
@@ -10098,6 +10530,15 @@ func (this *TaskStatus) Equal(that interface{}) bool {
 	} else if this.TaskId != nil {
 		return false
 	} else if that1.TaskId != nil {
+		return false
+	}
+	if this.ContainerId != nil && that1.ContainerId != nil {
+		if *this.ContainerId != *that1.ContainerId {
+			return false
+		}
+	} else if this.ContainerId != nil {
+		return false
+	} else if that1.ContainerId != nil {
 		return false
 	}
 	if this.State != nil && that1.State != nil {
@@ -11636,9 +12077,6 @@ func (this *ContainerInfo) VerboseEqual(that interface{}) error {
 	} else if that1.Privileged != nil {
 		return fmt3.Errorf("Privileged this(%v) Not Equal that(%v)", this.Privileged, that1.Privileged)
 	}
-	if !this.Parameters.Equal(that1.Parameters) {
-		return fmt3.Errorf("Parameters this(%v) Not Equal that(%v)", this.Parameters, that1.Parameters)
-	}
 	if this.ForcePullImage != nil && that1.ForcePullImage != nil {
 		if *this.ForcePullImage != *that1.ForcePullImage {
 			return fmt3.Errorf("ForcePullImage this(%v) Not Equal that(%v)", *this.ForcePullImage, *that1.ForcePullImage)
@@ -11673,6 +12111,74 @@ func (this *ContainerInfo) VerboseEqual(that interface{}) error {
 		return fmt3.Errorf("this.Hostname == nil && that.Hostname != nil")
 	} else if that1.Hostname != nil {
 		return fmt3.Errorf("Hostname this(%v) Not Equal that(%v)", this.Hostname, that1.Hostname)
+	}
+	if this.DomainName != nil && that1.DomainName != nil {
+		if *this.DomainName != *that1.DomainName {
+			return fmt3.Errorf("DomainName this(%v) Not Equal that(%v)", *this.DomainName, *that1.DomainName)
+		}
+	} else if this.DomainName != nil {
+		return fmt3.Errorf("this.DomainName == nil && that.DomainName != nil")
+	} else if that1.DomainName != nil {
+		return fmt3.Errorf("DomainName this(%v) Not Equal that(%v)", this.DomainName, that1.DomainName)
+	}
+	if len(this.EntryPoint) != len(that1.EntryPoint) {
+		return fmt3.Errorf("EntryPoint this(%v) Not Equal that(%v)", len(this.EntryPoint), len(that1.EntryPoint))
+	}
+	for i := range this.EntryPoint {
+		if this.EntryPoint[i] != that1.EntryPoint[i] {
+			return fmt3.Errorf("EntryPoint this[%v](%v) Not Equal that[%v](%v)", i, this.EntryPoint[i], i, that1.EntryPoint[i])
+		}
+	}
+	if len(this.Cmd) != len(that1.Cmd) {
+		return fmt3.Errorf("Cmd this(%v) Not Equal that(%v)", len(this.Cmd), len(that1.Cmd))
+	}
+	for i := range this.Cmd {
+		if this.Cmd[i] != that1.Cmd[i] {
+			return fmt3.Errorf("Cmd this[%v](%v) Not Equal that[%v](%v)", i, this.Cmd[i], i, that1.Cmd[i])
+		}
+	}
+	if len(this.SecurityOptions) != len(that1.SecurityOptions) {
+		return fmt3.Errorf("SecurityOptions this(%v) Not Equal that(%v)", len(this.SecurityOptions), len(that1.SecurityOptions))
+	}
+	for i := range this.SecurityOptions {
+		if this.SecurityOptions[i] != that1.SecurityOptions[i] {
+			return fmt3.Errorf("SecurityOptions this[%v](%v) Not Equal that[%v](%v)", i, this.SecurityOptions[i], i, that1.SecurityOptions[i])
+		}
+	}
+	if len(this.OnBuild) != len(that1.OnBuild) {
+		return fmt3.Errorf("OnBuild this(%v) Not Equal that(%v)", len(this.OnBuild), len(that1.OnBuild))
+	}
+	for i := range this.OnBuild {
+		if this.OnBuild[i] != that1.OnBuild[i] {
+			return fmt3.Errorf("OnBuild this[%v](%v) Not Equal that[%v](%v)", i, this.OnBuild[i], i, that1.OnBuild[i])
+		}
+	}
+	if this.WorkingDir != nil && that1.WorkingDir != nil {
+		if *this.WorkingDir != *that1.WorkingDir {
+			return fmt3.Errorf("WorkingDir this(%v) Not Equal that(%v)", *this.WorkingDir, *that1.WorkingDir)
+		}
+	} else if this.WorkingDir != nil {
+		return fmt3.Errorf("this.WorkingDir == nil && that.WorkingDir != nil")
+	} else if that1.WorkingDir != nil {
+		return fmt3.Errorf("WorkingDir this(%v) Not Equal that(%v)", this.WorkingDir, that1.WorkingDir)
+	}
+	if this.MacAddress != nil && that1.MacAddress != nil {
+		if *this.MacAddress != *that1.MacAddress {
+			return fmt3.Errorf("MacAddress this(%v) Not Equal that(%v)", *this.MacAddress, *that1.MacAddress)
+		}
+	} else if this.MacAddress != nil {
+		return fmt3.Errorf("this.MacAddress == nil && that.MacAddress != nil")
+	} else if that1.MacAddress != nil {
+		return fmt3.Errorf("MacAddress this(%v) Not Equal that(%v)", this.MacAddress, that1.MacAddress)
+	}
+	if this.VolumesFrom != nil && that1.VolumesFrom != nil {
+		if *this.VolumesFrom != *that1.VolumesFrom {
+			return fmt3.Errorf("VolumesFrom this(%v) Not Equal that(%v)", *this.VolumesFrom, *that1.VolumesFrom)
+		}
+	} else if this.VolumesFrom != nil {
+		return fmt3.Errorf("this.VolumesFrom == nil && that.VolumesFrom != nil")
+	} else if that1.VolumesFrom != nil {
+		return fmt3.Errorf("VolumesFrom this(%v) Not Equal that(%v)", this.VolumesFrom, that1.VolumesFrom)
 	}
 	if !this.Environments.Equal(that1.Environments) {
 		return fmt3.Errorf("Environments this(%v) Not Equal that(%v)", this.Environments, that1.Environments)
@@ -11740,9 +12246,6 @@ func (this *ContainerInfo) Equal(that interface{}) bool {
 	} else if that1.Privileged != nil {
 		return false
 	}
-	if !this.Parameters.Equal(that1.Parameters) {
-		return false
-	}
 	if this.ForcePullImage != nil && that1.ForcePullImage != nil {
 		if *this.ForcePullImage != *that1.ForcePullImage {
 			return false
@@ -11776,6 +12279,74 @@ func (this *ContainerInfo) Equal(that interface{}) bool {
 	} else if this.Hostname != nil {
 		return false
 	} else if that1.Hostname != nil {
+		return false
+	}
+	if this.DomainName != nil && that1.DomainName != nil {
+		if *this.DomainName != *that1.DomainName {
+			return false
+		}
+	} else if this.DomainName != nil {
+		return false
+	} else if that1.DomainName != nil {
+		return false
+	}
+	if len(this.EntryPoint) != len(that1.EntryPoint) {
+		return false
+	}
+	for i := range this.EntryPoint {
+		if this.EntryPoint[i] != that1.EntryPoint[i] {
+			return false
+		}
+	}
+	if len(this.Cmd) != len(that1.Cmd) {
+		return false
+	}
+	for i := range this.Cmd {
+		if this.Cmd[i] != that1.Cmd[i] {
+			return false
+		}
+	}
+	if len(this.SecurityOptions) != len(that1.SecurityOptions) {
+		return false
+	}
+	for i := range this.SecurityOptions {
+		if this.SecurityOptions[i] != that1.SecurityOptions[i] {
+			return false
+		}
+	}
+	if len(this.OnBuild) != len(that1.OnBuild) {
+		return false
+	}
+	for i := range this.OnBuild {
+		if this.OnBuild[i] != that1.OnBuild[i] {
+			return false
+		}
+	}
+	if this.WorkingDir != nil && that1.WorkingDir != nil {
+		if *this.WorkingDir != *that1.WorkingDir {
+			return false
+		}
+	} else if this.WorkingDir != nil {
+		return false
+	} else if that1.WorkingDir != nil {
+		return false
+	}
+	if this.MacAddress != nil && that1.MacAddress != nil {
+		if *this.MacAddress != *that1.MacAddress {
+			return false
+		}
+	} else if this.MacAddress != nil {
+		return false
+	} else if that1.MacAddress != nil {
+		return false
+	}
+	if this.VolumesFrom != nil && that1.VolumesFrom != nil {
+		if *this.VolumesFrom != *that1.VolumesFrom {
+			return false
+		}
+	} else if this.VolumesFrom != nil {
+		return false
+	} else if that1.VolumesFrom != nil {
 		return false
 	}
 	if !this.Environments.Equal(that1.Environments) {

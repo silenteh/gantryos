@@ -14,7 +14,7 @@ func InitWebInterface(port string) {
 
 	router = mux.NewRouter()
 	router.StrictSlash(true)
-	router.HandleFunc("/task", homeHandler)
+	router.HandleFunc("/task", taskHandler)
 	router.HandleFunc("/kill/{taskid}", killHandler)
 	router.HandleFunc("/undeploy/{appname}/{appver}", undeployHandler)
 	router.HandleFunc("/scale/{appname}/{appver}/{instances}", scaleHandler)
@@ -25,7 +25,7 @@ func InitWebInterface(port string) {
 	http.ListenAndServe(":"+port, nil)
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func taskHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
