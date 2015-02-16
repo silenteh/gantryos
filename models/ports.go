@@ -85,3 +85,13 @@ func NewPortMapping(hostPort, containerPort int, proto string) *portMapping {
 		Protocol:      proto,
 	}
 }
+
+func NewPortsMapping(mappings ...*portMapping) portsMapping {
+
+	var maps portsMapping
+	//mappings = maps
+	maps = mappings
+
+	return maps
+
+}

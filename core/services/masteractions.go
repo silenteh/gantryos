@@ -9,7 +9,7 @@ import (
 //====================================================================
 
 // this method is used for registering with the master
-func (ms *masterServer) taskRequest(t models.Task) {
-	e := ms.master.RunTask(t)
+func (ms *masterServer) taskRequest(task *models.Task) {
+	e := ms.master.RunTask(task)
 	ms.writerChannel <- e
 }

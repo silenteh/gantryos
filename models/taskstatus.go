@@ -6,46 +6,61 @@ import (
 	"time"
 )
 
-type taskStatus struct {
-	TaskId      string
-	ContainerId string
-	TaskState   *proto.TaskState
-	Message     string
-	Slave       *Slave
-	Timestamp   time.Time
-	Healthy     bool // this is based on the health checks
+type TaskStatus struct {
+	Id        string
+	TaskId    string
+	TaskState proto.TaskState
+	Message   string
+	Slave     *Slave
+	Timestamp time.Time
+	Healthy   bool // this is based on the health checks
 }
 
 // TODO: implement healthy and message
-func NewTaskStatus(taskId, containerId, message string, taskState *proto.TaskState, slave *Slave) *taskStatus {
+func NewTaskStatus(id, taskId, message string, taskState proto.TaskState, slave *Slave) *TaskStatus {
 
-	t := taskStatus{
-		TaskId:      taskId,
-		ContainerId: containerId,
-		TaskState:   taskState,
-		Message:     message,
-		Timestamp:   time.Now().UTC(),
-		Slave:       slave,
-		Healthy:     true,
+	t := TaskStatus{
+		Id:        id,
+		TaskId:    taskId,
+		TaskState: taskState,
+		Message:   message,
+		Timestamp: time.Now().UTC(),
+		Slave:     slave,
+		Healthy:   true,
 	}
 
 	return &t
 
 }
 
-func (t *taskStatus) ToProtoBuf() *proto.Envelope {
+func NewTaskStatusNoSlave(id, taskId, message string, taskState proto.TaskState) *TaskStatus {
 
-	e := new(proto.Envelope)
+	t := TaskStatus{
+		Id:        id,
+		TaskId:    taskId,
+		TaskState: taskState,
+		Message:   message,
+		Timestamp: time.Now().UTC(),
+		Healthy:   true,
+	}
+
+	return &t
+
+}
+
+func (t *TaskStatus) ToProtoBuf() *proto.TaskStatus {
+
+	//e := new(proto.Envelope)
 
 	taskState := new(proto.TaskStatus)
-	taskState.ContainerId = &t.ContainerId
+	taskState.GantryTaskId = &t.Id
 	taskState.TaskId = &t.TaskId
 	taskState.Healthy = protobuf.Bool(t.Healthy)
 	taskState.Timestamp = protobuf.Float64(float64(t.Timestamp.Unix()))
 	taskState.Slave = t.Slave.ToProtoBuf()
-	taskState.State = t.TaskState
-	e.TaskStatus = taskState
+	taskState.State = &t.TaskState
+	//e.TaskStatus = taskState
 
-	return e
+	return taskState
 
 }

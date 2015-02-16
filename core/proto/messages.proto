@@ -70,7 +70,7 @@ message KillTaskMessage {
   // TODO(bmahler): Include the SlaveID here to improve the Master's
   // ability to respond for non-activated slaves.  
   optional SlaveInfo slave = 1;
-  optional string task_id = 2;
+  optional string task_id = 2;  
 }
 
 
@@ -79,6 +79,10 @@ message KillTaskMessage {
 message StatusUpdateMessage {  
   optional SlaveTaskStatusUpdate update = 1;
   optional string pid = 2;
+}
+
+message TaskStatusMessage {  
+  optional TaskStatus task_status = 1;  
 }
 
 

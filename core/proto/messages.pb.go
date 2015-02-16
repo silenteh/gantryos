@@ -298,6 +298,21 @@ func (m *StatusUpdateMessage) GetPid() string {
 	return ""
 }
 
+type TaskStatusMessage struct {
+	TaskStatus       *TaskStatus `protobuf:"bytes,1,opt,name=task_status" json:"task_status,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *TaskStatusMessage) Reset()      { *m = TaskStatusMessage{} }
+func (*TaskStatusMessage) ProtoMessage() {}
+
+func (m *TaskStatusMessage) GetTaskStatus() *TaskStatus {
+	if m != nil {
+		return m.TaskStatus
+	}
+	return nil
+}
+
 type StatusUpdateAcknowledgementMessage struct {
 	Slave            *SlaveInfo `protobuf:"bytes,1,req,name=slave" json:"slave,omitempty"`
 	TaskId           *string    `protobuf:"bytes,2,req,name=task_id" json:"task_id,omitempty"`
@@ -1327,6 +1342,75 @@ func (m *StatusUpdateMessage) Unmarshal(data []byte) error {
 	}
 	return nil
 }
+func (m *TaskStatusMessage) Unmarshal(data []byte) error {
+	l := len(data)
+	index := 0
+	for index < l {
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if index >= l {
+				return io1.ErrUnexpectedEOF
+			}
+			b := data[index]
+			index++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt4.Errorf("proto: wrong wireType = %d for field TaskStatus", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io1.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + msglen
+			if postIndex > l {
+				return io1.ErrUnexpectedEOF
+			}
+			if m.TaskStatus == nil {
+				m.TaskStatus = &TaskStatus{}
+			}
+			if err := m.TaskStatus.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
+		default:
+			var sizeOfWire int
+			for {
+				sizeOfWire++
+				wire >>= 7
+				if wire == 0 {
+					break
+				}
+			}
+			index -= sizeOfWire
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
+			if err != nil {
+				return err
+			}
+			if (index + skippy) > l {
+				return io1.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
+			index += skippy
+		}
+	}
+	return nil
+}
 func (m *StatusUpdateAcknowledgementMessage) Unmarshal(data []byte) error {
 	l := len(data)
 	index := 0
@@ -2141,6 +2225,17 @@ func (this *StatusUpdateMessage) String() string {
 	}, "")
 	return s
 }
+func (this *TaskStatusMessage) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings2.Join([]string{`&TaskStatusMessage{`,
+		`TaskStatus:` + strings2.Replace(fmt5.Sprintf("%v", this.TaskStatus), "TaskStatus", "TaskStatus", 1) + `,`,
+		`XXX_unrecognized:` + fmt5.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *StatusUpdateAcknowledgementMessage) String() string {
 	if this == nil {
 		return "nil"
@@ -2413,6 +2508,19 @@ func (m *StatusUpdateMessage) Size() (n int) {
 	}
 	if m.Pid != nil {
 		l = len(*m.Pid)
+		n += 1 + l + sovMessages(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TaskStatusMessage) Size() (n int) {
+	var l int
+	_ = l
+	if m.TaskStatus != nil {
+		l = m.TaskStatus.Size()
 		n += 1 + l + sovMessages(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -2728,6 +2836,17 @@ func NewPopulatedStatusUpdateMessage(r randyMessages, easy bool) *StatusUpdateMe
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedMessages(r, 3)
+	}
+	return this
+}
+
+func NewPopulatedTaskStatusMessage(r randyMessages, easy bool) *TaskStatusMessage {
+	this := &TaskStatusMessage{}
+	if r.Intn(10) != 0 {
+		this.TaskStatus = NewPopulatedTaskStatus(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+		this.XXX_unrecognized = randUnrecognizedMessages(r, 2)
 	}
 	return this
 }
@@ -3283,6 +3402,37 @@ func (m *StatusUpdateMessage) MarshalTo(data []byte) (n int, err error) {
 	return i, nil
 }
 
+func (m *TaskStatusMessage) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *TaskStatusMessage) MarshalTo(data []byte) (n int, err error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.TaskStatus != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintMessages(data, i, uint64(m.TaskStatus.Size()))
+		n8, err := m.TaskStatus.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n8
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(data[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func (m *StatusUpdateAcknowledgementMessage) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -3302,11 +3452,11 @@ func (m *StatusUpdateAcknowledgementMessage) MarshalTo(data []byte) (n int, err 
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n8, err := m.Slave.MarshalTo(data[i:])
+		n9, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n8
+		i += n9
 	}
 	if m.TaskId != nil {
 		data[i] = 0x12
@@ -3411,11 +3561,11 @@ func (m *RegisterSlaveMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n9, err := m.Slave.MarshalTo(data[i:])
+		n10, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n9
+		i += n10
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -3442,11 +3592,11 @@ func (m *ReregisterSlaveMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n10, err := m.Slave.MarshalTo(data[i:])
+		n11, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n10
+		i += n11
 	}
 	if len(m.Tasks) > 0 {
 		for _, msg := range m.Tasks {
@@ -3485,11 +3635,11 @@ func (m *SlaveRegisteredMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n11, err := m.Slave.MarshalTo(data[i:])
+		n12, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n11
+		i += n12
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -3516,11 +3666,11 @@ func (m *SlaveReregisteredMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n12, err := m.Slave.MarshalTo(data[i:])
+		n13, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n12
+		i += n13
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -3547,11 +3697,11 @@ func (m *UnregisterSlaveMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n13, err := m.Slave.MarshalTo(data[i:])
+		n14, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n13
+		i += n14
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -3578,11 +3728,11 @@ func (m *HeartbeatMessage) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.Slave.Size()))
-		n14, err := m.Slave.MarshalTo(data[i:])
+		n15, err := m.Slave.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n14
+		i += n15
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -3706,6 +3856,15 @@ func (this *StatusUpdateMessage) GoString() string {
 	s := strings3.Join([]string{`&proto.StatusUpdateMessage{` +
 		`Update:` + fmt6.Sprintf("%#v", this.Update),
 		`Pid:` + valueToGoStringMessages(this.Pid, "string"),
+		`XXX_unrecognized:` + fmt6.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
+	return s
+}
+func (this *TaskStatusMessage) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings3.Join([]string{`&proto.TaskStatusMessage{` +
+		`TaskStatus:` + fmt6.Sprintf("%#v", this.TaskStatus),
 		`XXX_unrecognized:` + fmt6.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
 	return s
 }
@@ -4504,6 +4663,62 @@ func (this *StatusUpdateMessage) Equal(that interface{}) bool {
 	} else if this.Pid != nil {
 		return false
 	} else if that1.Pid != nil {
+		return false
+	}
+	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+		return false
+	}
+	return true
+}
+func (this *TaskStatusMessage) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt7.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*TaskStatusMessage)
+	if !ok {
+		return fmt7.Errorf("that is not of type *TaskStatusMessage")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt7.Errorf("that is type *TaskStatusMessage but is nil && this != nil")
+	} else if this == nil {
+		return fmt7.Errorf("that is type *TaskStatusMessagebut is not nil && this == nil")
+	}
+	if !this.TaskStatus.Equal(that1.TaskStatus) {
+		return fmt7.Errorf("TaskStatus this(%v) Not Equal that(%v)", this.TaskStatus, that1.TaskStatus)
+	}
+	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+		return fmt7.Errorf("XXX_unrecognized this(%v) Not Equal that(%v)", this.XXX_unrecognized, that1.XXX_unrecognized)
+	}
+	return nil
+}
+func (this *TaskStatusMessage) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*TaskStatusMessage)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.TaskStatus.Equal(that1.TaskStatus) {
 		return false
 	}
 	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

@@ -1,10 +1,13 @@
 package services
 
 import (
+	"bufio"
 	"errors"
 	protobuf "github.com/gogo/protobuf/proto"
+	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/utils"
+	"io"
 	"net"
 	"time"
 )
@@ -81,6 +84,37 @@ func (client *gantryTCPClient) Write(envelope *proto.Envelope) error {
 	_, err = client.conn.Write(data)
 	return err
 
+}
+
+func (client *gantryTCPClient) read(readChannel chan *proto.Envelope) {
+	for {
+		// new buffered reader
+		reader := bufio.NewReader(client.conn)
+
+		// get the lenght
+		lenght := make([]byte, 4)
+		_, err := reader.Read(lenght)
+		totalSize := utils.BytesToInt(lenght)
+
+		buffer := make([]byte, totalSize)
+		_, err = io.ReadFull(reader, buffer) //io.ReadFull(reader, buffer)
+		if err != nil && err != io.EOF {
+			log.Errorln(err)
+			continue
+		}
+
+		envelope := new(proto.Envelope)
+
+		err = protobuf.Unmarshal(buffer, envelope)
+		if err != nil {
+			log.Errorln("Failed to parse server sent data:", err)
+			continue
+		}
+		// it's a buffered channel, therefore this method does not block (unless the channel is full)
+		// TODO: notify when the channel is full
+
+		readChannel <- envelope
+	}
 }
 
 // =====================================================================

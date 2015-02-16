@@ -40,11 +40,11 @@ func (m *Master) GetPortString() string {
 
 // =========================================================================
 
-func (ms *Master) RunTask(t Task) *proto.Envelope {
+func (ms *Master) RunTask(task *Task) *proto.Envelope {
 	e := newMasterEnvelope(ms)
 	m := new(proto.RunTaskMessage)
-	m.Task = t.ToProtoBuf()
-	e.DestinationId = &t.Slave.Id
+	m.Task = task.ToProtoBuf()
+	e.DestinationId = &task.Slave.Id
 	e.RunTask = m
 	return e
 }

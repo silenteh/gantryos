@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"github.com/silenteh/gantryos/core/proto"
+	mock "github.com/silenteh/gantryos/utils/testing"
 	"testing"
 )
 
@@ -84,5 +85,39 @@ func TestPingMaster(t *testing.T) {
 	close(writerChannel)
 
 	fmt.Println("Slave heartbeat: OK")
+
+}
+
+func TestTaskStateChange(t *testing.T) {
+
+	writerChannel := make(chan *proto.Envelope, 1)
+
+	// instanciate the slave
+	slave := newSlave("127.0.0.1", "6050", nil, writerChannel)
+
+	// mock task status
+	taskStatus := mock.MakeTaskStatus()
+
+	// queue a register slave message for writing
+	slave.taskStateChange(taskStatus)
+
+	//get the message and check if the format is correct
+	envelope := <-slave.writerChannel
+
+	if envelope.GetTaskStatusMessage() == nil {
+		t.Error("Error sending the slave TaskStatus change message")
+	}
+
+	if envelope.GetTaskStatusMessage().GetTaskStatus().GetSlave().GetHostname() == "" {
+		t.Error("Error sending the slave TaskStatus message - SlaveInfo not present")
+	}
+
+	if envelope.GetTaskStatusMessage().GetTaskStatus().GetSlave().GetHostname() != slave.slave.Hostname {
+		t.Error("Error sending the slave TaskStatus message - SlaveInfo not present")
+	}
+
+	close(writerChannel)
+
+	fmt.Println("Slave TaskStatus: OK")
 
 }

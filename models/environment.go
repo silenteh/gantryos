@@ -37,3 +37,9 @@ func NewEnvironmentVariable(name, value string) *environmentVariable {
 		Value: value,
 	}
 }
+
+func NewEnvironmentVariables(envs ...*environmentVariable) environmentVariables {
+	var allEnvs environmentVariables
+	allEnvs = envs
+	return allEnvs
+}

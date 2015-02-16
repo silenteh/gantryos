@@ -30,3 +30,26 @@ func TestNewContainerVolume(t *testing.T) {
 	fmt.Println("- NewContainerVolume: SUCCESS")
 
 }
+
+func TestNewContainerVolumes(t *testing.T) {
+	persistent := false
+
+	vol, err := NewContainerVolume("/var/tmp", "/tmp", persistent, CONTAINER_VOLUME_RO)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vols := NewContainerVolumes(vol)
+
+	if len(vols) == 0 {
+		t.Fatal("NewContainerVolumes failed")
+	}
+
+	if len(vols) != 1 {
+		t.Fatal("NewContainerVolumes failed")
+	}
+
+	if vols[0].ContainerPath != "/var/tmp" {
+		t.Fatal("NewContainerVolumes failed to verify container path")
+	}
+	fmt.Println("- NewContainerVolumes: SUCCESS")
+}

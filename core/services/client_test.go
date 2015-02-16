@@ -34,7 +34,7 @@ func TestConnect(t *testing.T) {
 
 	fmt.Println("Client connected")
 
-	e := slave.NewHeartBeat() //models.NewHeartBeat(slave)
+	e := slave.NewHeartBeatMessage() //models.NewHeartBeat(slave)
 
 	for i := 0; i < 1024; i++ {
 		err = tcpClient.Write(e)

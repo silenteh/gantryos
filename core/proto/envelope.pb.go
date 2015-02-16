@@ -109,14 +109,14 @@ func (x *MessageType) UnmarshalJSON(data []byte) error {
 }
 
 type Envelope struct {
-	SenderId      *string        `protobuf:"bytes,1,opt,name=sender_id" json:"sender_id,omitempty"`
-	DestinationId *string        `protobuf:"bytes,2,opt,name=destination_id" json:"destination_id,omitempty"`
-	ResourceOffer *ResourceOffer `protobuf:"bytes,3,opt,name=resource_offer" json:"resource_offer,omitempty"`
-	TaskInfo      *TaskInfo      `protobuf:"bytes,4,opt,name=task_info" json:"task_info,omitempty"`
-	TaskStatus    *TaskStatus    `protobuf:"bytes,5,opt,name=task_status" json:"task_status,omitempty"`
-	MasterInfo    *MasterInfo    `protobuf:"bytes,6,opt,name=master_info" json:"master_info,omitempty"`
-	SlaveInfo     *SlaveInfo     `protobuf:"bytes,7,opt,name=slave_info" json:"slave_info,omitempty"`
-	Request       *Request       `protobuf:"bytes,8,opt,name=request" json:"request,omitempty"`
+	SenderId          *string            `protobuf:"bytes,1,opt,name=sender_id" json:"sender_id,omitempty"`
+	DestinationId     *string            `protobuf:"bytes,2,opt,name=destination_id" json:"destination_id,omitempty"`
+	ResourceOffer     *ResourceOffer     `protobuf:"bytes,3,opt,name=resource_offer" json:"resource_offer,omitempty"`
+	TaskInfo          *TaskInfo          `protobuf:"bytes,4,opt,name=task_info" json:"task_info,omitempty"`
+	TaskStatusMessage *TaskStatusMessage `protobuf:"bytes,5,opt,name=task_status_message" json:"task_status_message,omitempty"`
+	MasterInfo        *MasterInfo        `protobuf:"bytes,6,opt,name=master_info" json:"master_info,omitempty"`
+	SlaveInfo         *SlaveInfo         `protobuf:"bytes,7,opt,name=slave_info" json:"slave_info,omitempty"`
+	Request           *Request           `protobuf:"bytes,8,opt,name=request" json:"request,omitempty"`
 	// Tasks
 	RunTask  *RunTaskMessage  `protobuf:"bytes,9,opt,name=run_task" json:"run_task,omitempty"`
 	KillTask *KillTaskMessage `protobuf:"bytes,10,opt,name=kill_task" json:"kill_task,omitempty"`
@@ -162,9 +162,9 @@ func (m *Envelope) GetTaskInfo() *TaskInfo {
 	return nil
 }
 
-func (m *Envelope) GetTaskStatus() *TaskStatus {
+func (m *Envelope) GetTaskStatusMessage() *TaskStatusMessage {
 	if m != nil {
-		return m.TaskStatus
+		return m.TaskStatusMessage
 	}
 	return nil
 }
@@ -377,7 +377,7 @@ func (m *Envelope) Unmarshal(data []byte) error {
 			index = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt8.Errorf("proto: wrong wireType = %d for field TaskStatus", wireType)
+				return fmt8.Errorf("proto: wrong wireType = %d for field TaskStatusMessage", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -395,10 +395,10 @@ func (m *Envelope) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io2.ErrUnexpectedEOF
 			}
-			if m.TaskStatus == nil {
-				m.TaskStatus = &TaskStatus{}
+			if m.TaskStatusMessage == nil {
+				m.TaskStatusMessage = &TaskStatusMessage{}
 			}
-			if err := m.TaskStatus.Unmarshal(data[index:postIndex]); err != nil {
+			if err := m.TaskStatusMessage.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
 			index = postIndex
@@ -758,7 +758,7 @@ func (this *Envelope) String() string {
 		`DestinationId:` + valueToStringEnvelope(this.DestinationId) + `,`,
 		`ResourceOffer:` + strings4.Replace(fmt9.Sprintf("%v", this.ResourceOffer), "ResourceOffer", "ResourceOffer", 1) + `,`,
 		`TaskInfo:` + strings4.Replace(fmt9.Sprintf("%v", this.TaskInfo), "TaskInfo", "TaskInfo", 1) + `,`,
-		`TaskStatus:` + strings4.Replace(fmt9.Sprintf("%v", this.TaskStatus), "TaskStatus", "TaskStatus", 1) + `,`,
+		`TaskStatusMessage:` + strings4.Replace(fmt9.Sprintf("%v", this.TaskStatusMessage), "TaskStatusMessage", "TaskStatusMessage", 1) + `,`,
 		`MasterInfo:` + strings4.Replace(fmt9.Sprintf("%v", this.MasterInfo), "MasterInfo", "MasterInfo", 1) + `,`,
 		`SlaveInfo:` + strings4.Replace(fmt9.Sprintf("%v", this.SlaveInfo), "SlaveInfo", "SlaveInfo", 1) + `,`,
 		`Request:` + strings4.Replace(fmt9.Sprintf("%v", this.Request), "Request", "Request", 1) + `,`,
@@ -803,8 +803,8 @@ func (m *Envelope) Size() (n int) {
 		l = m.TaskInfo.Size()
 		n += 1 + l + sovEnvelope(uint64(l))
 	}
-	if m.TaskStatus != nil {
-		l = m.TaskStatus.Size()
+	if m.TaskStatusMessage != nil {
+		l = m.TaskStatusMessage.Size()
 		n += 1 + l + sovEnvelope(uint64(l))
 	}
 	if m.MasterInfo != nil {
@@ -891,7 +891,7 @@ func NewPopulatedEnvelope(r randyEnvelope, easy bool) *Envelope {
 		this.TaskInfo = NewPopulatedTaskInfo(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		this.TaskStatus = NewPopulatedTaskStatus(r, easy)
+		this.TaskStatusMessage = NewPopulatedTaskStatusMessage(r, easy)
 	}
 	if r.Intn(10) != 0 {
 		this.MasterInfo = NewPopulatedMasterInfo(r, easy)
@@ -1052,11 +1052,11 @@ func (m *Envelope) MarshalTo(data []byte) (n int, err error) {
 		}
 		i += n2
 	}
-	if m.TaskStatus != nil {
+	if m.TaskStatusMessage != nil {
 		data[i] = 0x2a
 		i++
-		i = encodeVarintEnvelope(data, i, uint64(m.TaskStatus.Size()))
-		n3, err := m.TaskStatus.MarshalTo(data[i:])
+		i = encodeVarintEnvelope(data, i, uint64(m.TaskStatusMessage.Size()))
+		n3, err := m.TaskStatusMessage.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1228,7 +1228,7 @@ func (this *Envelope) GoString() string {
 		`DestinationId:` + valueToGoStringEnvelope(this.DestinationId, "string"),
 		`ResourceOffer:` + fmt10.Sprintf("%#v", this.ResourceOffer),
 		`TaskInfo:` + fmt10.Sprintf("%#v", this.TaskInfo),
-		`TaskStatus:` + fmt10.Sprintf("%#v", this.TaskStatus),
+		`TaskStatusMessage:` + fmt10.Sprintf("%#v", this.TaskStatusMessage),
 		`MasterInfo:` + fmt10.Sprintf("%#v", this.MasterInfo),
 		`SlaveInfo:` + fmt10.Sprintf("%#v", this.SlaveInfo),
 		`Request:` + fmt10.Sprintf("%#v", this.Request),
@@ -1313,8 +1313,8 @@ func (this *Envelope) VerboseEqual(that interface{}) error {
 	if !this.TaskInfo.Equal(that1.TaskInfo) {
 		return fmt11.Errorf("TaskInfo this(%v) Not Equal that(%v)", this.TaskInfo, that1.TaskInfo)
 	}
-	if !this.TaskStatus.Equal(that1.TaskStatus) {
-		return fmt11.Errorf("TaskStatus this(%v) Not Equal that(%v)", this.TaskStatus, that1.TaskStatus)
+	if !this.TaskStatusMessage.Equal(that1.TaskStatusMessage) {
+		return fmt11.Errorf("TaskStatusMessage this(%v) Not Equal that(%v)", this.TaskStatusMessage, that1.TaskStatusMessage)
 	}
 	if !this.MasterInfo.Equal(that1.MasterInfo) {
 		return fmt11.Errorf("MasterInfo this(%v) Not Equal that(%v)", this.MasterInfo, that1.MasterInfo)
@@ -1401,7 +1401,7 @@ func (this *Envelope) Equal(that interface{}) bool {
 	if !this.TaskInfo.Equal(that1.TaskInfo) {
 		return false
 	}
-	if !this.TaskStatus.Equal(that1.TaskStatus) {
+	if !this.TaskStatusMessage.Equal(that1.TaskStatusMessage) {
 		return false
 	}
 	if !this.MasterInfo.Equal(that1.MasterInfo) {

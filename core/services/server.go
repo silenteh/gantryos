@@ -101,6 +101,8 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 	// new slave connection was successfully created
 	totalSlaveConnections++
 
+	var slaveId string
+
 	// close the connection in case this exists
 	defer conn.Close()
 
@@ -128,9 +130,27 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 			log.Errorln("Failed to parse client sent data:", err)
 			continue
 		}
+
+		// detect the slaveid
+		if envelope.GetRegisterSlave() != nil {
+			slaveId = envelope.GetRegisterSlave().GetSlave().GetId()
+			slaveConnections[slaveId] = conn
+		}
+
+		// detect the slaveid
+		if envelope.GetReRegisterSlave() != nil {
+			slaveId = envelope.GetReRegisterSlave().GetSlave().GetId()
+			slaveConnections[slaveId] = conn
+		}
+
 		// it's a buffered channel, therefore this method does not block (unless the channel is full)
 		// TODO: notify when the channel is full
 		dataChannel <- envelope
+	}
+
+	// remove the connection
+	if slaveId != "" {
+		slaveConnections[slaveId] = nil
 	}
 
 	// at this point the connection will be closed therefore decrease the counter

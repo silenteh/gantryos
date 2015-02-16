@@ -77,11 +77,21 @@ func (s *Slave) GetPortString() string {
 	return strconv.Itoa(s.Port)
 }
 
-func (s *Slave) NewHeartBeat() *proto.Envelope {
+func (s *Slave) NewHeartBeatMessage() *proto.Envelope {
 
 	e := newSlaveEnvelope(s)
 	hb := new(proto.HeartbeatMessage)
 	hb.Slave = s.ToProtoBuf()
 	e.Heartbeat = hb
+	return e
+}
+
+func (s *Slave) NewTaskStatusMessage(taskStatus *TaskStatus) *proto.Envelope {
+
+	e := newSlaveEnvelope(s)
+	taskStatus.Slave = s
+	su := new(proto.TaskStatusMessage)
+	su.TaskStatus = taskStatus.ToProtoBuf()
+	e.TaskStatusMessage = su
 	return e
 }

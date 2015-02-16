@@ -835,6 +835,95 @@ func BenchmarkStatusUpdateMessageProtoUnmarshal(b *testing7.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
+func TestTaskStatusMessageProto(t *testing7.T) {
+	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, false)
+	data, err := github_com_gogo_protobuf_proto4.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	msg := &TaskStatusMessage{}
+	if err := github_com_gogo_protobuf_proto4.Unmarshal(data, msg); err != nil {
+		panic(err)
+	}
+	for i := range data {
+		data[i] = byte(popr.Intn(256))
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseProto %#v, since %v", msg, p, err)
+	}
+	if !p.Equal(msg) {
+		t.Fatalf("%#v !Proto %#v", msg, p)
+	}
+}
+
+func TestTaskStatusMessageMarshalTo(t *testing7.T) {
+	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, false)
+	size := p.Size()
+	data := make([]byte, size)
+	for i := range data {
+		data[i] = byte(popr.Intn(256))
+	}
+	_, err := p.MarshalTo(data)
+	if err != nil {
+		panic(err)
+	}
+	msg := &TaskStatusMessage{}
+	if err := github_com_gogo_protobuf_proto4.Unmarshal(data, msg); err != nil {
+		panic(err)
+	}
+	for i := range data {
+		data[i] = byte(popr.Intn(256))
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseProto %#v, since %v", msg, p, err)
+	}
+	if !p.Equal(msg) {
+		t.Fatalf("%#v !Proto %#v", msg, p)
+	}
+}
+
+func BenchmarkTaskStatusMessageProtoMarshal(b *testing7.B) {
+	popr := math_rand7.New(math_rand7.NewSource(616))
+	total := 0
+	pops := make([]*TaskStatusMessage, 10000)
+	for i := 0; i < 10000; i++ {
+		pops[i] = NewPopulatedTaskStatusMessage(popr, false)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		data, err := github_com_gogo_protobuf_proto4.Marshal(pops[i%10000])
+		if err != nil {
+			panic(err)
+		}
+		total += len(data)
+	}
+	b.SetBytes(int64(total / b.N))
+}
+
+func BenchmarkTaskStatusMessageProtoUnmarshal(b *testing7.B) {
+	popr := math_rand7.New(math_rand7.NewSource(616))
+	total := 0
+	datas := make([][]byte, 10000)
+	for i := 0; i < 10000; i++ {
+		data, err := github_com_gogo_protobuf_proto4.Marshal(NewPopulatedTaskStatusMessage(popr, false))
+		if err != nil {
+			panic(err)
+		}
+		datas[i] = data
+	}
+	msg := &TaskStatusMessage{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		total += len(datas[i%10000])
+		if err := github_com_gogo_protobuf_proto4.Unmarshal(datas[i%10000], msg); err != nil {
+			panic(err)
+		}
+	}
+	b.SetBytes(int64(total / b.N))
+}
+
 func TestStatusUpdateAcknowledgementMessageProto(t *testing7.T) {
 	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
 	p := NewPopulatedStatusUpdateAcknowledgementMessage(popr, false)
@@ -1807,6 +1896,25 @@ func TestStatusUpdateMessageJSON(t *testing8.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
+func TestTaskStatusMessageJSON(t *testing8.T) {
+	popr := math_rand8.New(math_rand8.NewSource(time8.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, true)
+	jsondata, err := encoding_json1.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	msg := &TaskStatusMessage{}
+	err = encoding_json1.Unmarshal(jsondata, msg)
+	if err != nil {
+		panic(err)
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseProto %#v, since %v", msg, p, err)
+	}
+	if !p.Equal(msg) {
+		t.Fatalf("%#v !Json Equal %#v", msg, p)
+	}
+}
 func TestStatusUpdateAcknowledgementMessageJSON(t *testing8.T) {
 	popr := math_rand8.New(math_rand8.NewSource(time8.Now().UnixNano()))
 	p := NewPopulatedStatusUpdateAcknowledgementMessage(popr, true)
@@ -2266,6 +2374,38 @@ func TestStatusUpdateMessageProtoCompactText(t *testing9.T) {
 	}
 }
 
+func TestTaskStatusMessageProtoText(t *testing9.T) {
+	popr := math_rand9.New(math_rand9.NewSource(time9.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, true)
+	data := github_com_gogo_protobuf_proto5.MarshalTextString(p)
+	msg := &TaskStatusMessage{}
+	if err := github_com_gogo_protobuf_proto5.UnmarshalText(data, msg); err != nil {
+		panic(err)
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseProto %#v, since %v", msg, p, err)
+	}
+	if !p.Equal(msg) {
+		t.Fatalf("%#v !Proto %#v", msg, p)
+	}
+}
+
+func TestTaskStatusMessageProtoCompactText(t *testing9.T) {
+	popr := math_rand9.New(math_rand9.NewSource(time9.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, true)
+	data := github_com_gogo_protobuf_proto5.CompactTextString(p)
+	msg := &TaskStatusMessage{}
+	if err := github_com_gogo_protobuf_proto5.UnmarshalText(data, msg); err != nil {
+		panic(err)
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseProto %#v, since %v", msg, p, err)
+	}
+	if !p.Equal(msg) {
+		t.Fatalf("%#v !Proto %#v", msg, p)
+	}
+}
+
 func TestStatusUpdateAcknowledgementMessageProtoText(t *testing9.T) {
 	popr := math_rand9.New(math_rand9.NewSource(time9.Now().UnixNano()))
 	p := NewPopulatedStatusUpdateAcknowledgementMessage(popr, true)
@@ -2629,6 +2769,15 @@ func TestKillTaskMessageStringer(t *testing10.T) {
 func TestStatusUpdateMessageStringer(t *testing10.T) {
 	popr := math_rand10.New(math_rand10.NewSource(time10.Now().UnixNano()))
 	p := NewPopulatedStatusUpdateMessage(popr, false)
+	s1 := p.String()
+	s2 := fmt2.Sprintf("%v", p)
+	if s1 != s2 {
+		t.Fatalf("String want %v got %v", s1, s2)
+	}
+}
+func TestTaskStatusMessageStringer(t *testing10.T) {
+	popr := math_rand10.New(math_rand10.NewSource(time10.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, false)
 	s1 := p.String()
 	s2 := fmt2.Sprintf("%v", p)
 	if s1 != s2 {
@@ -3023,6 +3172,41 @@ func BenchmarkStatusUpdateMessageSize(b *testing11.B) {
 	pops := make([]*StatusUpdateMessage, 1000)
 	for i := 0; i < 1000; i++ {
 		pops[i] = NewPopulatedStatusUpdateMessage(popr, false)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		total += pops[i%1000].Size()
+	}
+	b.SetBytes(int64(total / b.N))
+}
+
+func TestTaskStatusMessageSize(t *testing11.T) {
+	popr := math_rand11.New(math_rand11.NewSource(time11.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, true)
+	size2 := github_com_gogo_protobuf_proto6.Size(p)
+	data, err := github_com_gogo_protobuf_proto6.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	size := p.Size()
+	if len(data) != size {
+		t.Fatalf("size %v != marshalled size %v", size, len(data))
+	}
+	if size2 != size {
+		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
+	}
+	size3 := github_com_gogo_protobuf_proto6.Size(p)
+	if size3 != size {
+		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
+	}
+}
+
+func BenchmarkTaskStatusMessageSize(b *testing11.B) {
+	popr := math_rand11.New(math_rand11.NewSource(616))
+	total := 0
+	pops := make([]*TaskStatusMessage, 1000)
+	for i := 0; i < 1000; i++ {
+		pops[i] = NewPopulatedTaskStatusMessage(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3463,6 +3647,19 @@ func TestStatusUpdateMessageGoString(t *testing12.T) {
 		panic(err)
 	}
 }
+func TestTaskStatusMessageGoString(t *testing12.T) {
+	popr := math_rand12.New(math_rand12.NewSource(time12.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, false)
+	s1 := p.GoString()
+	s2 := fmt3.Sprintf("%#v", p)
+	if s1 != s2 {
+		t.Fatalf("GoString want %v got %v", s1, s2)
+	}
+	_, err := go_parser1.ParseExpr(s1)
+	if err != nil {
+		panic(err)
+	}
+}
 func TestStatusUpdateAcknowledgementMessageGoString(t *testing12.T) {
 	popr := math_rand12.New(math_rand12.NewSource(time12.Now().UnixNano()))
 	p := NewPopulatedStatusUpdateAcknowledgementMessage(popr, false)
@@ -3708,6 +3905,21 @@ func TestStatusUpdateMessageVerboseEqual(t *testing13.T) {
 		panic(err)
 	}
 	msg := &StatusUpdateMessage{}
+	if err := github_com_gogo_protobuf_proto7.Unmarshal(data, msg); err != nil {
+		panic(err)
+	}
+	if err := p.VerboseEqual(msg); err != nil {
+		t.Fatalf("%#v !VerboseEqual %#v, since %v", msg, p, err)
+	}
+}
+func TestTaskStatusMessageVerboseEqual(t *testing13.T) {
+	popr := math_rand13.New(math_rand13.NewSource(time13.Now().UnixNano()))
+	p := NewPopulatedTaskStatusMessage(popr, false)
+	data, err := github_com_gogo_protobuf_proto7.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	msg := &TaskStatusMessage{}
 	if err := github_com_gogo_protobuf_proto7.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}

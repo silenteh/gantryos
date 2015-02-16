@@ -4,25 +4,247 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
-	//docker "github.com/silenteh/gantryos/core/tasks/docker"
+	docker "github.com/silenteh/gantryos/core/tasks/docker"
+	"github.com/silenteh/gantryos/models"
+
+	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
-func startMonitor(task dockerTask) {
+const (
+	container_image_exists_error   = 0
+	container_pulling_image        = 1
+	container_pulling_image_failed = 2
+	container_starting             = 3
+	container_starting_failed      = 4
+	container_started              = 5
+)
 
-	//task.client.AddEventListener(listener)
+type dockerTask struct {
+	client           *dockerclient.Client
+	dockerEvents     chan *dockerclient.APIEvents
+	taskStatusEvents chan *models.TaskStatus
+}
+
+// init a docker task and a docker client
+func StartDockerTaskService() (TaskInterface, error) {
+	var task TaskInterface
+
+	// init docker client
+	endpoint := os.Getenv("DOCKER_HOST")
+	if endpoint == "" {
+		endpoint = "unix:///var/run/docker.sock"
+	}
+	client, _ := dockerclient.NewClient(endpoint)
+	// channel to receive the events of the containers
+	dockerEvents := make(chan *dockerclient.APIEvents)
+	taskEvents := make(chan *models.TaskStatus)
+
+	if err := client.AddEventListener(dockerEvents); err != nil {
+		return task, err
+	}
+
+	t := dockerTask{
+		dockerEvents:     dockerEvents,
+		taskStatusEvents: taskEvents,
+		client:           client,
+	}
+
+	// monitor docker events
+	t.startMonitor()
+	// assign the dockerTask to the interface
+	task = t
+
+	return task, nil
+}
+
+func (t dockerTask) StopService() {
+	// remove the event listener
+	t.client.RemoveEventListener(t.dockerEvents)
+
+	// close the docker event channel
+	close(t.dockerEvents)
+
+	// close the task status channel
+	close(t.taskStatusEvents)
+}
+
+// ==========================================================================================
+// ==== DOCKER
+
+func (t dockerTask) Start(taskInfo *proto.TaskInfo) (string, error) {
+
+	// image name
+	image := taskInfo.GetContainer().GetImage()
+
+	signalTaskStatus(t, taskInfo, container_starting, nil)
+
+	// create the puller to download the image
+	puller := docker.NewDockerPuller(t.client)
+
+	// check if the image is already downloaded
+	hasImage, err := puller.IsImagePresent(image)
+	if err != nil {
+		signalTaskStatus(t, taskInfo, container_pulling_image_failed, err)
+		return "", err
+	}
+
+	// force pull if required by the task or if the image is not present
+	if !hasImage || taskInfo.GetContainer().GetForcePullImage() {
+
+		signalTaskStatus(t, taskInfo, container_pulling_image, nil)
+
+		if err := puller.Pull(image); err != nil {
+			signalTaskStatus(t, taskInfo, container_pulling_image_failed, err)
+			return "", err
+		}
+	}
+
+	// at this point we have the image so create the container with all the info we have in the task and then start it
+	containerId, err := startDockerContainer(t, taskInfo)
+	if err != nil {
+		signalTaskStatus(t, taskInfo, container_starting_failed, err)
+		return "", err
+	}
+
+	taskInfo.TaskId = &containerId
+
+	signalTaskStatus(t, taskInfo, container_started, nil)
+
+	// update the taskIndex
+	taskInfo.TaskId = &containerId
+	addTaskId(containerId, taskInfo.GetGantryTaskId())
+
+	return containerId, nil
 
 }
 
-// returns the container ID and an error in case
-func startDockerContainer(task dockerTask) (string, error) {
+func (t dockerTask) Stop(taskId string) error {
+	err := stopDockerContainer(t, taskId)
+	if err == nil {
+		containerId := getContainerId(taskId)
+		removeTaskId(containerId, taskId)
+	}
+	return err
+}
 
-	config, hostConfig := newDockerConfig(task.info)
+func (t dockerTask) Status(taskId string) error {
+
+	return statusDockerContainer(t, taskId)
+}
+
+func (t dockerTask) CleanContainers() error {
+	return nil
+}
+
+func (t dockerTask) CleanImages() error {
+	return nil
+}
+
+func (t dockerTask) GetEventChannel() chan *models.TaskStatus {
+	return t.taskStatusEvents
+}
+
+func (task dockerTask) startMonitor() {
+
+	go func(t dockerTask) {
+		for {
+			// wait for a docker event
+			dEvent := <-t.dockerEvents
+
+			// get the task ID from the in memory index
+			gantryTaskId := getTaskId(dEvent.ID)
+
+			// convert it to a model TaskStatus
+			taskStatus := &models.TaskStatus{
+				Id:        gantryTaskId,
+				TaskId:    dEvent.ID,
+				Message:   dEvent.Status,
+				Timestamp: time.Now().UTC(),
+			}
+
+			// various docker events
+			switch dEvent.Status {
+			case "create", "exec_create":
+				taskStatus.TaskState = proto.TaskState_TASK_STARTING
+				break
+			case "restart", "start", "exec_start", "unpause":
+				taskStatus.TaskState = proto.TaskState_TASK_RUNNING
+				break
+			case "oom", "die":
+				taskStatus.TaskState = proto.TaskState_TASK_FAILED
+				break
+			case "stop", "destroy", "kill":
+				taskStatus.TaskState = proto.TaskState_TASK_FINISHED
+				break
+			case "paused":
+				taskStatus.TaskState = proto.TaskState_TASK_PAUSED
+				break
+			case "extract":
+				taskStatus.TaskState = proto.TaskState_TASK_CLONING_IMAGE
+				break
+			default:
+				continue
+			}
+
+			t.taskStatusEvents <- taskStatus
+		}
+	}(task)
+
+}
+
+func signalTaskStatus(task dockerTask, taskInfo *proto.TaskInfo, state int, err error) {
+	taskId := taskInfo.GetTaskId()
+	image := taskInfo.GetContainer().GetImage()
+	taskStatus := models.NewTaskStatusNoSlave(taskInfo.GetGantryTaskId(), taskId, "", proto.TaskState_TASK_FAILED)
+
+	switch state {
+	case container_starting:
+		taskStatus.Message = "Starting new container with image: " + image
+		taskStatus.TaskState = proto.TaskState_TASK_STARTING
+		break
+	case container_image_exists_error:
+		taskStatus.Message = "Assessing existance of the container image " + image + " failed"
+		if err != nil {
+			taskStatus.Message += " with error" + err.Error()
+		}
+		break
+	case container_pulling_image:
+		taskStatus.Message = "Pulling the image " + image
+		taskStatus.TaskState = proto.TaskState_TASK_CLONING_IMAGE
+		break
+	case container_pulling_image_failed:
+		taskStatus.Message = "Pulling the image " + image + "failed"
+		if err != nil {
+			taskStatus.Message += "with error " + err.Error()
+		}
+		break
+	case container_starting_failed:
+		taskStatus.Message = "Container from image " + image + " not started"
+		if err != nil {
+			taskStatus.Message += "with error " + err.Error()
+		}
+		break
+	case container_started:
+		taskStatus.Message = "Container from image " + image + " started successfully"
+		taskStatus.TaskState = proto.TaskState_TASK_RUNNING
+		break
+	}
+
+	task.taskStatusEvents <- taskStatus
+}
+
+// returns the container ID and an error in case
+func startDockerContainer(task dockerTask, taskInfo *proto.TaskInfo) (string, error) {
+
+	config, hostConfig := newDockerConfig(taskInfo)
 
 	createContainerOptions := dockerclient.CreateContainerOptions{
-		Name:       task.info.GetTaskId(),
+		Name:       taskInfo.GetTaskId(),
 		Config:     &config,
 		HostConfig: &hostConfig,
 	}
@@ -65,20 +287,46 @@ func stopDockerContainer(task dockerTask, containerId string) error {
 	return err
 }
 
-func statusDockerContainer(task dockerTask, containerId string) (proto.TaskState, error) {
+func statusDockerContainer(task dockerTask, gantryId string) error {
+
+	// create a task status
+	taskStatus := models.NewTaskStatusNoSlave(gantryId, "", "", proto.TaskState_TASK_LOST)
+
+	// get the taskId
+	containerId := getContainerId(gantryId)
+
+	if containerId == "" {
+		err := errors.New("No container found linked to the task id:" + gantryId + " - task LOST ?")
+		taskStatus.Message = err.Error()
+		task.taskStatusEvents <- taskStatus
+		return err
+	}
+
+	// it measn we have found the container ID
+	taskStatus.TaskId = containerId
+
+	// inspect the container
 	container, err := task.client.InspectContainer(containerId)
+
 	if err != nil {
-		return proto.TaskState_TASK_LOST, err
+		taskStatus.Message = "Could not inspect the container id:" + containerId
+		task.taskStatusEvents <- taskStatus
+		return err
 	}
 
 	switch {
 	case container.State.Pid > 0:
-		return proto.TaskState_TASK_RUNNING, nil
+		taskStatus.Message = "Container id" + containerId + " RUNNING"
+		taskStatus.TaskState = proto.TaskState_TASK_RUNNING
+		break
 	case container.State.OOMKilled:
-		return proto.TaskState_TASK_FAILED, nil
-	default:
-		return proto.TaskState_TASK_FINISHED, nil
+		taskStatus.Message = "Container id" + containerId + " killed because ran OUT of MEMORY"
+		taskStatus.TaskState = proto.TaskState_TASK_FAILED
+		break
 	}
+
+	task.taskStatusEvents <- taskStatus
+	return nil
 
 }
 
@@ -232,7 +480,7 @@ func makeDockerPortsAndBindings(taskInfo *proto.TaskInfo) (map[dockerclient.Port
 		portBindings[dockerPort] = []dockerclient.PortBinding{
 			{
 				HostPort: strconv.Itoa(int(exteriorPort)),
-				//HostIP:   port.HostIP,
+				HostIP:   "0.0.0.0",
 			},
 		}
 	}

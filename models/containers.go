@@ -31,6 +31,27 @@ type container struct {
 	OnBuild              arguments
 }
 
+func NewContainer(name, image, hostname, domainName, workingDir string, forcePull bool,
+	network proto.ContainerInfo_Network, volumes containerVolumes, portsMapping portsMapping,
+	envVars environmentVariables) *container {
+
+	container := &container{
+		Name:                 name,
+		Image:                image,
+		ForcePull:            forcePull,
+		Network:              network,
+		Hostname:             hostname,
+		DomainName:           domainName,
+		WorkingDir:           workingDir,
+		Volumes:              volumes,
+		PortsMapping:         portsMapping,
+		EnvironmentVariables: envVars,
+	}
+
+	return container
+
+}
+
 func (c *container) ToProtoBuf() *proto.ContainerInfo {
 
 	cinfo := new(proto.ContainerInfo)

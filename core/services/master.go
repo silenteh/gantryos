@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/config"
@@ -9,7 +10,6 @@ import (
 	"github.com/silenteh/gantryos/core/resources"
 	"github.com/silenteh/gantryos/models"
 	"github.com/silenteh/gantryos/utils"
-	//"net"
 	"strconv"
 )
 
@@ -104,16 +104,20 @@ func writerMasterLoop(m *masterServer) {
 		switch {
 		case envelope.GetRunTask() != nil:
 			// execute the task to the specific slave
-			write(envelope)
+			if err := write(envelope); err != nil {
+				log.Errorln(err)
+				fmt.Println(err)
+			}
+
 			continue
 		case envelope.GetKillTask() != nil:
 			// execute the task to the specific slave
 			write(envelope)
 			continue
-		case envelope.GetTaskStatus() != nil:
-			// ask for the status of a specific task
-			write(envelope)
-			continue
+		//case envelope.GetTaskStatus() != nil:
+		//	// ask for the status of a specific task
+		//	write(envelope)
+		//	continue
 		case envelope.GetReconcileTasks() != nil:
 			// ask TO ALL SLAVES for the reconciliation of the tasks
 			if envelope.GetReconcileTasks().GetSlaveId() == "" {

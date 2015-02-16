@@ -58,7 +58,7 @@ message Envelope {
 	
 	optional ResourceOffer resource_offer = 3;
 	optional TaskInfo task_info = 4;
-	optional TaskStatus task_status = 5;
+	optional TaskStatusMessage task_status_message = 5;
 	optional MasterInfo master_info = 6;
 	optional SlaveInfo slave_info = 7;	
 	optional Request request = 8;

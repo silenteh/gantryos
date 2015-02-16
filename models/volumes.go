@@ -58,3 +58,13 @@ func NewContainerVolume(containerPath, hostPath string, persistent bool, permiss
 	return v, nil
 
 }
+
+func NewEmptyContainerVolumesSet() containerVolumes {
+	return containerVolumes{}
+}
+
+func NewContainerVolumes(vols ...*containerVolume) containerVolumes {
+	var allVols containerVolumes
+	allVols = vols
+	return allVols
+}

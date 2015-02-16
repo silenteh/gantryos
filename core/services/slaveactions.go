@@ -1,5 +1,9 @@
 package services
 
+import (
+	"github.com/silenteh/gantryos/models"
+)
+
 //====================================================================
 
 // this method is used for registering with the master
@@ -22,7 +26,7 @@ func disconnectMaster() {
 // this method is used to tell the master we are still alive
 // IT BLOCKS !
 func (s *slaveServer) pingMaster() {
-	e := s.slave.NewHeartBeat()
+	e := s.slave.NewHeartBeatMessage()
 	s.writerChannel <- e
 }
 
@@ -32,7 +36,10 @@ func (s *slaveServer) resourceOffer() {
 }
 
 // this method is used to tell the master a task has changed its state
-func (s *slaveServer) taskStateChange() {
+func (s *slaveServer) taskStateChange(taskStatus *models.TaskStatus) {
+
+	e := s.slave.NewTaskStatusMessage(taskStatus)
+	s.writerChannel <- e
 
 }
 
