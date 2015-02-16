@@ -74,10 +74,10 @@ func TestInitTcpClient(t *testing.T) {
 	taskInfo := mock.MakeGolangHelloTask()
 	m.taskRequest(taskInfo)
 
-	// make sure the data is in the channel !
-	taskRequest := <-slaveReaderChannel
+	// // make sure the data is in the channel !
+	// taskRequest := <-slaveReaderChannel
 
-	fmt.Printf("%s", taskRequest)
+	// fmt.Printf("%s", taskRequest)
 
 	//===========================================================================================
 	// stopping the master

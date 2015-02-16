@@ -10,7 +10,7 @@ import (
 
 func TestMakeDockerVolumesBinds(t *testing.T) {
 
-	task := mock.MakeGolangHelloTaskInfo()
+	task := mock.MakeGolangHelloTask()
 
 	vol, err := models.NewContainerVolume("/tmp", "/var/tmp", false, models.CONTAINER_VOLUME_RW)
 	if err != nil {
@@ -18,9 +18,9 @@ func TestMakeDockerVolumesBinds(t *testing.T) {
 	}
 	vols := models.NewContainerVolumes(vol)
 
-	task.GetContainer().Volumes = vols.ToProtoBuf()
+	task.Container.Volumes = vols
 
-	bindings := makeDockerVolumesBinds(task)
+	bindings := makeDockerVolumesBinds(task.ToProtoBuf())
 
 	if len(bindings) == 0 {
 		t.Fatal("Error creating the volume bindings")
@@ -35,8 +35,8 @@ func TestMakeDockerVolumesBinds(t *testing.T) {
 }
 
 func TestMakeDockerPortsAndBindings(t *testing.T) {
-	task := mock.MakeGolangHelloTaskInfo()
-	mapping, binding := makeDockerPortsAndBindings(task)
+	task := mock.MakeGolangHelloTask()
+	mapping, binding := makeDockerPortsAndBindings(task.ToProtoBuf())
 	if len(mapping) == 0 {
 		t.Fatal("Error generating port mappings")
 	}
@@ -51,5 +51,4 @@ func TestMakeDockerPortsAndBindings(t *testing.T) {
 		t.Fatal("Error generating port mappings")
 	}
 
-	fmt.Println("%s - %s", mapping, binding)
 }
