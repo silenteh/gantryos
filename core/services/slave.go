@@ -41,9 +41,9 @@ func newSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, w
 	// ==============================================
 
 	// Slave ID
-	slaveId := config.GantryOSSlaveId
+	slaveConfig := config.GantryOSSlaveId
 
-	slaveInfo := models.NewSlave(slaveId.Id, ip, hostname, port, config.GantryOSConfig.Slave.Checkpoint, slaveId.Registered)
+	slaveInfo := models.NewSlave(slaveConfig.Id, ip, hostname, port, config.GantryOSConfig.Slave.Checkpoint, slaveConfig.Registered)
 
 	// assign properties
 	slave.masterIp = masterIp

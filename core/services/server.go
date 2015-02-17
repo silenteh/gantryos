@@ -2,6 +2,7 @@ package services
 
 import (
 	"bufio"
+	"fmt"
 	protobuf "github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
@@ -134,12 +135,14 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 		// detect the slaveid
 		if envelope.GetRegisterSlave() != nil {
 			slaveId = envelope.GetRegisterSlave().GetSlave().GetId()
+			fmt.Println("Adding slave to the index:", slaveId)
 			slaveConnections[slaveId] = conn
 		}
 
 		// detect the slaveid
 		if envelope.GetReRegisterSlave() != nil {
 			slaveId = envelope.GetReRegisterSlave().GetSlave().GetId()
+			fmt.Println("Adding slave to the index:", slaveId)
 			slaveConnections[slaveId] = conn
 		}
 
@@ -150,6 +153,7 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 	// remove the connection
 	if slaveId != "" {
+		fmt.Println("Removing slave from index:", slaveId)
 		slaveConnections[slaveId] = nil
 	}
 

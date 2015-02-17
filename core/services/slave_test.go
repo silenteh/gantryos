@@ -10,8 +10,8 @@ import (
 func TestInitTcpClient(t *testing.T) {
 
 	// get a master tcp
-	masterReaderChannel := make(chan *proto.Envelope)
-	masterWriterChannel := make(chan *proto.Envelope)
+	masterReaderChannel := make(chan *proto.Envelope, 2)
+	masterWriterChannel := make(chan *proto.Envelope, 2)
 
 	// create the master
 	m := newMaster("127.0.0.1", "6066", masterReaderChannel, masterWriterChannel)
@@ -31,11 +31,12 @@ func TestInitTcpClient(t *testing.T) {
 	// ====================================================================
 
 	// creatwe the slave
-	slaveWriterChannel := make(chan *proto.Envelope, 1)
-	slaveReaderChannel := make(chan *proto.Envelope, 1)
+	slaveWriterChannel := make(chan *proto.Envelope, 2)
+	slaveReaderChannel := make(chan *proto.Envelope, 2)
 
 	// instanciate the slave
 	slave := newSlave("127.0.0.1", "6066", slaveReaderChannel, slaveWriterChannel)
+	slave.slave.Id = "test_slave_id_123456789"
 
 	// init the slave TCP
 	slave.initTcpClient()
@@ -46,6 +47,12 @@ func TestInitTcpClient(t *testing.T) {
 	// init the slave writer
 	slave.startSlaveWriter()
 
+	// this is needed to register the slave with the master
+	slave.joinMaster()
+
+	// read the register message first and discard it
+	eventEnvelope := <-masterReaderChannel
+
 	// mock a task status
 	taskStatus := mock.MakeTaskStatus()
 	taskStatus.Id = "123456789"
@@ -55,7 +62,11 @@ func TestInitTcpClient(t *testing.T) {
 	slave.taskStateChange(taskStatus)
 
 	// try to get the message from the master reader channel
-	eventEnvelope := <-masterReaderChannel
+
+	// read the task state change message
+	eventEnvelope = <-masterReaderChannel
+
+	//fmt.Printf("\n\n%s\n\n", eventEnvelope)
 
 	if eventEnvelope == nil {
 		t.Error("Slave cannot write to the master - nil envelope")
@@ -75,9 +86,19 @@ func TestInitTcpClient(t *testing.T) {
 	m.taskRequest(taskInfo)
 
 	// // make sure the data is in the channel !
-	// taskRequest := <-slaveReaderChannel
+	taskRequestEnvelope := <-slaveReaderChannel
 
-	// fmt.Printf("%s", taskRequest)
+	if taskRequestEnvelope.GetSenderId() != m.master.Id {
+		t.Error("Error matching the master and the sender id")
+	}
+
+	taskRequest := taskRequestEnvelope.GetRunTask()
+
+	if taskRequest == nil {
+		t.Error("Master cannot send data to the slave")
+	}
+
+	//fmt.Printf("\n\n%s\n\n", taskRequest)
 
 	//===========================================================================================
 	// stopping the master

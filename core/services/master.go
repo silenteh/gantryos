@@ -138,12 +138,14 @@ func writerMasterLoop(m *masterServer) {
 func write(envelope *proto.Envelope) error {
 
 	slaveId := envelope.GetDestinationId()
+	fmt.Println("Envelope slave Id", slaveId)
 
 	if slaveId == "" {
 		return errors.New("Unknown destination id, master skipping handling of data write")
 	}
 
 	conn := slaveConnections[slaveId]
+
 	if conn != nil {
 		data, err := protobuf.Marshal(envelope)
 		if err != nil {
