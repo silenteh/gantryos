@@ -1,4 +1,5 @@
 // +build integration
+
 package tasks
 
 import (
@@ -12,6 +13,7 @@ import (
 func init() {
 	os.Setenv("DOCKER_HOST", "tcp://192.168.59.103:2376")
 	os.Setenv("DOCKER_CERT_PATH", "/Users/silenteh/.boot2docker/certs/boot2docker-vm")
+
 }
 
 func TestStartDockerService(t *testing.T) {
