@@ -30,7 +30,7 @@ func MakeGolangHelloTask() *models.Task {
 
 func MakeGolangHelloTaskWithVolume() *models.Task {
 	persistent := false
-	vol, err := models.NewContainerVolume("/tmp", "/data", persistent, models.CONTAINER_VOLUME_RW)
+	vol, err := models.NewContainerVolume("/tmp", "/var/tmp", persistent, models.CONTAINER_VOLUME_RW)
 	if err != nil {
 		return nil
 	}

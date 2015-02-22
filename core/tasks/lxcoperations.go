@@ -30,7 +30,7 @@ func (t lxcTask) CleanContainers() error {
 	return nil
 }
 
-func (t lxcTask) CleanImages() error {
+func (t lxcTask) CleanImages(image string) error {
 	return nil
 }
 

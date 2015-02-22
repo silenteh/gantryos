@@ -11,7 +11,7 @@ import (
 func (slave *slaveServer) startSlaveListener() error {
 
 	// init the docker service
-	dockerService, err := tasks.StartDockerTaskService()
+	dockerService, err := tasks.StartDockerService()
 	if err != nil {
 		return err
 	}

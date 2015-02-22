@@ -22,33 +22,58 @@ const (
 	container_starting             = 3
 	container_starting_failed      = 4
 	container_started              = 5
+	channels_size                  = 1024
 )
 
-type dockerTask struct {
+type dockerService struct {
 	client           *dockerclient.Client
 	dockerEvents     chan *dockerclient.APIEvents
 	taskStatusEvents chan *models.TaskStatus
 }
 
 // init a docker task and a docker client
-func StartDockerTaskService() (TaskInterface, error) {
+func StartDockerService() (TaskInterface, error) {
 	var task TaskInterface
+	var err error
 
 	// init docker client
 	endpoint := os.Getenv("DOCKER_HOST")
+	log.Infoln("DOCKER_HOST env var set to:", endpoint)
 	if endpoint == "" {
 		endpoint = "unix:///var/run/docker.sock"
+		log.Infoln("Falling back to local docker daemon at:", "/var/run/docker.sock")
 	}
-	client, _ := dockerclient.NewClient(endpoint)
+
+	certsPath := os.Getenv("DOCKER_CERT_PATH")
+
+	var client *dockerclient.Client
+	if certsPath != "" {
+
+		cert := certsPath + "/cert.pem"
+		key := certsPath + "/key.pem"
+		ca := certsPath + "/ca.pem"
+		client, err = dockerclient.NewTLSClient(endpoint, cert, key, ca)
+	} else {
+		client, err = dockerclient.NewClient(endpoint)
+	}
+
+	if err != nil || client == nil {
+		return task, err
+	}
+
+	if err = client.Ping(); err != nil {
+		return task, err
+	}
+
 	// channel to receive the events of the containers
-	dockerEvents := make(chan *dockerclient.APIEvents)
-	taskEvents := make(chan *models.TaskStatus)
+	dockerEvents := make(chan *dockerclient.APIEvents, channels_size)
+	taskEvents := make(chan *models.TaskStatus, channels_size)
 
 	if err := client.AddEventListener(dockerEvents); err != nil {
 		return task, err
 	}
 
-	t := dockerTask{
+	t := dockerService{
 		dockerEvents:     dockerEvents,
 		taskStatusEvents: taskEvents,
 		client:           client,
@@ -56,13 +81,13 @@ func StartDockerTaskService() (TaskInterface, error) {
 
 	// monitor docker events
 	t.startMonitor()
-	// assign the dockerTask to the interface
+	// assign the dockerService to the interface
 	task = t
 
 	return task, nil
 }
 
-func (t dockerTask) StopService() {
+func (t dockerService) StopService() {
 	// remove the event listener
 	t.client.RemoveEventListener(t.dockerEvents)
 
@@ -76,7 +101,7 @@ func (t dockerTask) StopService() {
 // ==========================================================================================
 // ==== DOCKER
 
-func (t dockerTask) Start(taskInfo *proto.TaskInfo) (string, error) {
+func (t dockerService) Start(taskInfo *proto.TaskInfo) (string, error) {
 
 	// image name
 	image := taskInfo.GetContainer().GetImage()
@@ -106,55 +131,74 @@ func (t dockerTask) Start(taskInfo *proto.TaskInfo) (string, error) {
 
 	// at this point we have the image so create the container with all the info we have in the task and then start it
 	containerId, err := startDockerContainer(t, taskInfo)
-	if err != nil {
+	if err != nil || containerId == "" {
 		signalTaskStatus(t, taskInfo, container_starting_failed, err)
 		return "", err
 	}
 
-	taskInfo.TaskId = &containerId
-
-	signalTaskStatus(t, taskInfo, container_started, nil)
+	// ORDER is important
 
 	// update the taskIndex
 	taskInfo.TaskId = &containerId
 	addTaskId(containerId, taskInfo.GetGantryTaskId())
 
+	// send a signal
+	signalTaskStatus(t, taskInfo, container_started, nil)
+
 	return containerId, nil
 
 }
 
-func (t dockerTask) Stop(taskId string) error {
-	err := stopDockerContainer(t, taskId)
+func (t dockerService) Stop(containerId string, removeVolumes bool) error {
+	err := stopDockerContainer(t, containerId)
 	if err == nil {
-		containerId := getContainerId(taskId)
+		taskId := getTaskId(containerId)
 		removeTaskId(containerId, taskId)
+
+		opts := dockerclient.RemoveContainerOptions{
+			ID:            containerId,
+			RemoveVolumes: removeVolumes,
+			// A flag that indicates whether Docker should remove the container even if it is currently running.
+			// At this point the container should have been stopped anyway
+			Force: true,
+		}
+
+		if err := t.client.RemoveContainer(opts); err != nil {
+			return err
+		}
 	}
 	return err
 }
 
-func (t dockerTask) Status(taskId string) error {
+func (t dockerService) Status(containerId string) error {
 
-	return statusDockerContainer(t, taskId)
+	return statusDockerContainer(t, containerId)
 }
 
-func (t dockerTask) CleanContainers() error {
+func (t dockerService) CleanContainers() error {
 	return nil
 }
 
-func (t dockerTask) CleanImages() error {
+func (t dockerService) CleanImages(image string) error {
+
 	return nil
 }
 
-func (t dockerTask) GetEventChannel() chan *models.TaskStatus {
+func (t dockerService) GetEventChannel() chan *models.TaskStatus {
 	return t.taskStatusEvents
 }
 
-func (task dockerTask) startMonitor() {
+func (task dockerService) startMonitor() {
 
-	go func(t dockerTask) {
+	go func(t dockerService) {
 		for {
 			// wait for a docker event
 			dEvent := <-t.dockerEvents
+
+			// this means the channel is closed
+			if dEvent == nil {
+				break
+			}
 
 			// get the task ID from the in memory index
 			gantryTaskId := getTaskId(dEvent.ID)
@@ -197,7 +241,7 @@ func (task dockerTask) startMonitor() {
 
 }
 
-func signalTaskStatus(task dockerTask, taskInfo *proto.TaskInfo, state int, err error) {
+func signalTaskStatus(task dockerService, taskInfo *proto.TaskInfo, state int, err error) {
 	taskId := taskInfo.GetTaskId()
 	image := taskInfo.GetContainer().GetImage()
 	taskStatus := models.NewTaskStatusNoSlave(taskInfo.GetGantryTaskId(), taskId, "", proto.TaskState_TASK_FAILED)
@@ -230,7 +274,7 @@ func signalTaskStatus(task dockerTask, taskInfo *proto.TaskInfo, state int, err 
 		}
 		break
 	case container_started:
-		taskStatus.Message = "Container from image " + image + " started successfully"
+		taskStatus.Message = "Container id" + taskInfo.GetTaskId() + " from image " + image + " started successfully"
 		taskStatus.TaskState = proto.TaskState_TASK_RUNNING
 		break
 	}
@@ -239,7 +283,7 @@ func signalTaskStatus(task dockerTask, taskInfo *proto.TaskInfo, state int, err 
 }
 
 // returns the container ID and an error in case
-func startDockerContainer(task dockerTask, taskInfo *proto.TaskInfo) (string, error) {
+func startDockerContainer(task dockerService, taskInfo *proto.TaskInfo) (string, error) {
 
 	config, hostConfig := newDockerConfig(taskInfo)
 
@@ -260,14 +304,14 @@ func startDockerContainer(task dockerTask, taskInfo *proto.TaskInfo) (string, er
 }
 
 // stops and remove the container
-func stopDockerContainer(task dockerTask, containerId string) error {
+func stopDockerContainer(task dockerService, containerId string) error {
 	var err error
 	err = task.client.StopContainer(containerId, 30) // waits max 30 seconds
 	if err != nil {
 
 		killOptions := dockerclient.KillContainerOptions{
 			ID:     containerId,
-			Signal: dockerclient.SIGKILL,
+			Signal: dockerclient.SIGTERM,
 		}
 		// try to kill it
 		err = task.client.KillContainer(killOptions)
@@ -287,13 +331,18 @@ func stopDockerContainer(task dockerTask, containerId string) error {
 	return err
 }
 
-func statusDockerContainer(task dockerTask, gantryId string) error {
+func statusDockerContainer(task dockerService, containerId string) error {
 
+	// get the gantry task Id from the container id
+	gantryId := getTaskId(containerId)
 	// create a task status
-	taskStatus := models.NewTaskStatusNoSlave(gantryId, "", "", proto.TaskState_TASK_LOST)
+	taskStatus := models.NewTaskStatusNoSlave(containerId, "", "", proto.TaskState_TASK_LOST)
 
-	// get the taskId
-	containerId := getContainerId(gantryId)
+	if gantryId == "" {
+		err := errors.New("No gantry task id found linked to the container id:" + containerId + " - task LOST ?")
+		taskStatus.Message = err.Error()
+		task.taskStatusEvents <- taskStatus
+	}
 
 	if containerId == "" {
 		err := errors.New("No container found linked to the task id:" + gantryId + " - task LOST ?")
@@ -394,8 +443,8 @@ func newDockerConfig(taskInfo *proto.TaskInfo) (dockerclient.Config, dockerclien
 		Privileged:   taskInfo.GetContainer().GetPrivileged(),
 	}
 
-	fmt.Printf("%s\n", config)
-	fmt.Printf("%s\n", hostConfig)
+	//fmt.Printf("%s\n", config)
+	//fmt.Printf("%s\n", hostConfig)
 
 	return config, hostConfig
 

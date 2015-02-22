@@ -21,10 +21,21 @@ func removeTaskId(containerId, gantryId string) {
 
 // gets the container id from the gantry task id
 func getTaskId(containerId string) string {
-	return *containerToTaskIndex[containerId]
+
+	if data := containerToTaskIndex[containerId]; data == nil {
+		return ""
+	} else {
+		return *data
+	}
 }
 
 // gets the container id from the gantry task id
 func getContainerId(gantryId string) string {
-	return *taskToContainerIndex[gantryId]
+	//return *taskToContainerIndex[gantryId]
+
+	if data := taskToContainerIndex[gantryId]; data == nil {
+		return ""
+	} else {
+		return *data
+	}
 }

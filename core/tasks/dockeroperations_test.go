@@ -51,4 +51,37 @@ func TestMakeDockerPortsAndBindings(t *testing.T) {
 		t.Fatal("Error generating port mappings")
 	}
 
+	fmt.Println("- makeDockerPortsAndBindings: OK")
+}
+
+func TestNewDockerConfig(t *testing.T) {
+
+	task := mock.MakeGolangHelloTaskWithVolume()
+	dc, hc := newDockerConfig(task.ToProtoBuf())
+
+	// check the dockerConfig properties
+	if len(dc.Env) == 0 || dc.Env[0] != "GANTRY=os" {
+		t.Fatal("MakeGolangHelloTaskWithVolume has 1 environmnet variable: GANTRY=os")
+	}
+
+	// TODO HOST CONFIG additional properties
+	if len(hc.Binds) == 0 || hc.Binds[0] != "/var/tmp:/tmp" {
+		t.Fatal("Host Config volume bindings are wrong")
+	}
+
+	var port dockerclient.Port = "8080/tcp"
+
+	portBinding := dockerclient.PortBinding{"0.0.0.0", "8080"}
+
+	portBindingWrong := dockerclient.PortBinding{"0.0.0.0", "9090"}
+
+	if len(hc.PortBindings) == 0 || hc.PortBindings[port][0] != portBinding {
+		t.Fatal("Host Config port mapping bindings are wrong")
+	}
+
+	if len(hc.PortBindings) == 0 || hc.PortBindings[port][0] == portBindingWrong {
+		t.Fatal("Host Config port mapping bindings are wrong")
+	}
+
+	fmt.Println("- newDockerConfig: OK")
 }
