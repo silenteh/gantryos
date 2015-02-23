@@ -3,12 +3,16 @@ package tasks
 import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 	log "github.com/golang/glog"
+	//gantrylog "github.com/silenteh/gantryos/core/logging"
 	"github.com/silenteh/gantryos/core/proto"
 	docker "github.com/silenteh/gantryos/core/tasks/docker"
 	"github.com/silenteh/gantryos/models"
 
+	//"bufio"
+	//"bytes"
 	"errors"
 	"fmt"
+	//"io"
 	"os"
 	"strconv"
 	"strings"
@@ -144,6 +148,9 @@ func (t dockerService) Start(taskInfo *proto.TaskInfo) (string, error) {
 
 	// send a signal
 	signalTaskStatus(t, taskInfo, container_started, nil)
+
+	// start to tail the logs
+	go tailLogs(t, containerId)
 
 	return containerId, nil
 
@@ -546,4 +553,102 @@ func makeDockerVolumesBinds(taskInfo *proto.TaskInfo) []string {
 		binds = append(binds, b)
 	}
 	return binds
+}
+
+func tailLogs(task dockerService, containerId string) {
+
+	// // Switch by reding configuration between the logging type
+	// // currently supported only gantrylog
+	// // TODO: add syslog - ELK ?
+
+	// var outBuff bytes.Buffer
+	// var errBuff bytes.Buffer
+
+	// //outWR, outRD := io.Pipe() //bufio.NewWriter(&outBuff)
+	// //errWR, errRD := io.Pipe() //bufio.NewWriter(&errBuff)
+	// //outWR := bufio.NewWriter(&outBuff)
+
+	// //go func(t dockerService, outBuffer *bytes.Buffer, errBuffer *bytes.Buffer) {
+
+	// opts := dockerclient.LogsOptions{
+	// 	Container:    containerId,
+	// 	OutputStream: &outBuff,
+	// 	ErrorStream:  &errBuff,
+	// 	Follow:       true,
+	// 	Stdout:       true,
+	// 	Stderr:       true,
+	// 	Timestamps:   true,
+	// 	Tail:         "all",
+	// }
+
+	// if err := task.client.Logs(opts); err != nil {
+	// 	fmt.Println(err)
+	// 	log.Errorln("Failed to tail the container log", err)
+	// }
+	// fmt.Println("Logging on container started")
+	// //fmt.Println(outBuff.String())
+	// //fmt.Println(errBuff.String())
+
+	// ///outBuff.WriteString("TEST TEST TEST ===========")
+
+	// go func(cId string, buf *bytes.Buffer) {
+
+	// 	outLog := gantrylog.NewGantryLog()
+	// 	outLog.Info("", "")
+
+	// 	rd := bufio.NewReader(buf)
+
+	// 	//scanner := bufio.NewScanner(buf)
+	// 	//fmt.Println("TEST TEST TEST ===========")
+
+	// 	//var localBuffer []byte
+	// 	for {
+	// 		//data, err := buf.ReadBytes('\n')
+	// 		//fmt.Println(err)
+	// 		if rd.Buffered() > 0 {
+
+	// 			buf.WriteString("[")
+	// 			buf.WriteString(cId)
+	// 			buf.WriteString("] ")
+
+	// 			fmt.Println(buf.String())
+	// 			//outLog.Info("tag", "")
+	// 			// _, err := buf.Read(localBuffer)
+	// 			// if err != nil {
+	// 			// 	fmt.Println(err)
+	// 			// 	outLog.Error("tag", "")
+	// 			// }
+	// 			// if _, err := buf.Read(localBuffer); err != nil {
+	// 			// 	outLog.Info(containerId, string(localBuffer))
+	// 			// 	fmt.Println("Read line with data", string(localBuffer))
+	// 			// }
+
+	// 			fmt.Println("Read line")
+	// 			time.Sleep(1 * time.Second)
+	// 		} else {
+	// 			fmt.Println(buf.String())
+	// 			time.Sleep(1 * time.Second)
+	// 		}
+	// 	}
+
+	// }(containerId, &outBuff)
+
+	// //}(task, &outBuff, &errBuff)
+
+	// // read the stdout continuosly
+
+	// // // read the stderr continuosly
+	// // go func(cId string, buf bytes.Buffer) {
+	// // 	outLog := gantrylog.NewGantryLog()
+	// // 	for {
+	// // 		buf.WriteString("[")
+	// // 		buf.WriteString(cId)
+	// // 		buf.WriteString("] ")
+	// // 		if data, err := buf.ReadBytes(byte(10)); err != nil {
+	// // 			outLog.Error(containerId, string(data))
+	// // 		}
+	// // 	}
+
+	// // }(containerId, errBuff)
+
 }

@@ -3,17 +3,19 @@
 package tasks
 
 import (
+	"flag"
 	"fmt"
 	"github.com/silenteh/gantryos/models"
 	mock "github.com/silenteh/gantryos/utils/testing"
 	"os"
 	"testing"
+	"time"
 )
 
 func init() {
 	os.Setenv("DOCKER_HOST", "tcp://192.168.59.103:2376")
 	os.Setenv("DOCKER_CERT_PATH", "/Users/silenteh/.boot2docker/certs/boot2docker-vm")
-
+	flag.Parse()
 }
 
 func TestStartDockerService(t *testing.T) {
@@ -44,7 +46,7 @@ func TestStartDockerService(t *testing.T) {
 	taskInfo := mock.MakeGolangHelloTaskWithVolume()
 
 	// fo the integration tests disable the force pull to speed them up
-	taskInfo.Container.ForcePull = true
+	taskInfo.Container.ForcePull = false
 
 	containerId, err := service.Start(taskInfo.ToProtoBuf())
 	if err != nil {
@@ -62,6 +64,8 @@ func TestStartDockerService(t *testing.T) {
 	}
 
 	fmt.Println("# Container status success")
+
+	time.Sleep(5 * time.Second)
 
 	removeVolumes := true
 	if err = service.Stop(containerId, removeVolumes); err != nil {
