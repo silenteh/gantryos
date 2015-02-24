@@ -8,8 +8,51 @@
 			"Rev": "7dda39b2e7d5e265014674c5af696ba4186679e9"
 		},
 		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Rev": "6dcec6ed3bdf8559ac1696bc32d7dbd9aadaf5b6"
+		},
+		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "1aaf839fb07e099361e445273993ccd9adc21b07"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/archive",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/fileutils",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/ioutils",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/pools",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/promise",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/system",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
+			"Comment": "v1.4.1-1260-g1d27930",
+			"Rev": "1d27930faaacf6ebe4553c7b23087e2164816470"
+		},
+		{
+			"ImportPath": "github.com/fsouza/go-dockerclient",
+			"Rev": "59b423db81e5894ca7460652f1b206fc72d85750"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/proto",
@@ -18,22 +61,6 @@
 		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "d1c4472bf2efd3826f2b5bdcc02d8416798d678c"
-		},
-		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "d19717788084716e4adff0515be6289aa04bec46"
-		},
-		{
-			"ImportPath": "github.com/ghodss/yaml",
-			"Rev": "3bc1590d16074751993dd3b1a76e7a8d1a916a11"
-		},
-		{
-			"ImportPath": "github.com/socketplane/libovsdb",
-			"Rev": "555a561202ec17fe6c068038a35291ce9ba33066"
-		},
-		{
-			"ImportPath": "gopkg.in/lxc/go-lxc.v2",
-			"Rev": "87d2acfe2ac7863b3c5dde360d1eefc6f643483b"
-		}		
+		}
 	]
 }

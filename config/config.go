@@ -13,14 +13,30 @@ type gantryOSConfig struct {
 }
 
 type masterConfig struct {
-	IP   string
-	Port int
+	IP             string
+	Port           int
+	SyslogServer   syslogServer
+	LogstashServer logstashServer
 }
 
 type slaveConfig struct {
-	IP         string
-	Port       int
-	Checkpoint bool
+	IP               string
+	Port             int
+	Checkpoint       bool
+	ContainersLogDir string
+	SyslogServer     syslogServer
+	LogstashServer   logstashServer
+}
+
+type syslogServer struct {
+	Hostname string
+	Port     string
+	Protocol string //tcp or udp
+}
+
+type logstashServer struct {
+	Hostname string
+	Port     string
 }
 
 type slaveInfo struct {

@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	//clog "github.com/Sirupsen/logrus"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	log "github.com/golang/glog"
 	//gantrylog "github.com/silenteh/gantryos/core/logging"
@@ -570,6 +571,8 @@ func tailLogs(task dockerService, containerId string) {
 
 	// //go func(t dockerService, outBuffer *bytes.Buffer, errBuffer *bytes.Buffer) {
 
+	// clog.
+
 	// opts := dockerclient.LogsOptions{
 	// 	Container:    containerId,
 	// 	OutputStream: &outBuff,
@@ -583,8 +586,9 @@ func tailLogs(task dockerService, containerId string) {
 
 	// if err := task.client.Logs(opts); err != nil {
 	// 	fmt.Println(err)
-	// 	log.Errorln("Failed to tail the container log", err)
+	// 	log.Errorln("Failed to tail the container", containerId, err)
 	// }
+
 	// fmt.Println("Logging on container started")
 	// //fmt.Println(outBuff.String())
 	// //fmt.Println(errBuff.String())
