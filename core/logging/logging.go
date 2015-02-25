@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"bufio"
+	//"bufio"
 	"github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
 	"github.com/silenteh/gantryos/config"
@@ -10,9 +10,9 @@ import (
 )
 
 type LogInterface interface {
-	Info(msg string)  // used to start a container starting (it does all the operations, like pull and start)
-	Error(msg string) // stops the container and removes the stopped container
-	FileWriter() (*os.File, *bufio.Writer)
+	Info(msg string)        // used to start a container starting (it does all the operations, like pull and start)
+	Error(msg string)       // stops the container and removes the stopped container
+	ToFileWriter() *os.File // writes to a file - it returns the handle so that it can be closed
 }
 
 func newSlaveContainerLogger() *logrus.Logger {

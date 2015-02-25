@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/silenteh/gantryos/models"
+	"github.com/silenteh/gantryos/utils"
 	mock "github.com/silenteh/gantryos/utils/testing"
 	"os"
 	"testing"
@@ -13,8 +14,8 @@ import (
 )
 
 func init() {
-	os.Setenv("DOCKER_HOST", "tcp://192.168.59.105:2376")
-	os.Setenv("DOCKER_CERT_PATH", "/Users/scogno/.boot2docker/certs/boot2docker-vm")
+	os.Setenv("DOCKER_HOST", "tcp://192.168.59.103:2376")
+	os.Setenv("DOCKER_CERT_PATH", "/Users/silenteh/.boot2docker/certs/boot2docker-vm")
 	flag.Parse()
 }
 
@@ -76,6 +77,8 @@ func TestStartDockerService(t *testing.T) {
 
 	service.StopService()
 	//close(events)
+
+	utils.RemoveDir("./logs")
 
 	fmt.Println("Integration tests: OK")
 }

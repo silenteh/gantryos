@@ -57,6 +57,10 @@ func CreateDir(path string) error {
 	return os.MkdirAll(path, 0755)
 }
 
+func RemoveDir(path string) error {
+	return os.RemoveAll(path)
+}
+
 func ReadFile(fileName string) []byte {
 	buf := bytes.NewBuffer(nil)
 

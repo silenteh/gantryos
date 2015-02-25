@@ -8,11 +8,11 @@ import (
 	docker "github.com/silenteh/gantryos/core/tasks/docker"
 	"github.com/silenteh/gantryos/models"
 
-	//"bufio"
+	"bufio"
 	//"bytes"
 	"errors"
 	"fmt"
-	//"io"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -561,105 +561,53 @@ func makeDockerVolumesBinds(taskInfo *proto.TaskInfo) []string {
 
 func tailLogs(task dockerService, containerId string) {
 
-	// // Switch by reding configuration between the logging type
-	// // currently supported only gantrylog
-	// // TODO: add syslog - ELK ?
-
-	// var outBuff bytes.Buffer
-	// var errBuff bytes.Buffer
-
-	// //outWR, outRD := io.Pipe() //bufio.NewWriter(&outBuff)
-	// //errWR, errRD := io.Pipe() //bufio.NewWriter(&errBuff)
-	// //outWR := bufio.NewWriter(&outBuff)
-
-	// //go func(t dockerService, outBuffer *bytes.Buffer, errBuffer *bytes.Buffer) {
-
-	// clog.
+	r, w := io.Pipe()
 
 	// TODO: CONTAINER NAME !!!!
-	log := gantrylog.NewGantryContainerLog(containerId, containerId)
-	f, w := log.FileWriter()
-	defer w.Flush()
-	defer f.Close()
+	loggerInstance := gantrylog.NewGantryContainerLog(containerId, containerId)
+	f := loggerInstance.ToFileWriter()
 
-	opts := dockerclient.LogsOptions{
-		Container:    containerId,
-		OutputStream: w,
-		ErrorStream:  w,
-		Follow:       true,
-		Stdout:       true,
-		Stderr:       true,
-	}
+	go func(writer *io.PipeWriter, s dockerService, clog gantrylog.LogInterface) {
 
-	if err := task.client.Logs(opts); err != nil {
-		fmt.Println(err)
-		log.Error(err.Error())
-	}
+		// when the goroutine exists close the PipeReader
+		defer writer.Close()
 
-	// fmt.Println("Logging on container started")
-	// //fmt.Println(outBuff.String())
-	// //fmt.Println(errBuff.String())
+		var ww io.Writer
+		ww = writer
 
-	// ///outBuff.WriteString("TEST TEST TEST ===========")
+		opts := dockerclient.LogsOptions{
+			Container:    containerId,
+			OutputStream: ww,
+			ErrorStream:  ww,
+			Follow:       true,
+			Stdout:       true,
+			Stderr:       true,
+		}
 
-	// go func(cId string, buf *bytes.Buffer) {
+		if err := task.client.Logs(opts); err != nil {
+			//clog.Error(err.Error())
+			log.Errorln(err)
+		}
 
-	// 	outLog := gantrylog.NewGantryLog()
-	// 	outLog.Info("", "")
+	}(w, task, loggerInstance)
 
-	// 	rd := bufio.NewReader(buf)
+	go func(reader *io.PipeReader, containerId string, clog gantrylog.LogInterface, file *os.File) {
+		// when the goroutine exists close the PipeReader
+		defer reader.Close()
 
-	// 	//scanner := bufio.NewScanner(buf)
-	// 	//fmt.Println("TEST TEST TEST ===========")
+		// close the file handle
+		defer file.Close()
 
-	// 	//var localBuffer []byte
-	// 	for {
-	// 		//data, err := buf.ReadBytes('\n')
-	// 		//fmt.Println(err)
-	// 		if rd.Buffered() > 0 {
+		var rr io.Reader
+		rr = reader
 
-	// 			buf.WriteString("[")
-	// 			buf.WriteString(cId)
-	// 			buf.WriteString("] ")
-
-	// 			fmt.Println(buf.String())
-	// 			//outLog.Info("tag", "")
-	// 			// _, err := buf.Read(localBuffer)
-	// 			// if err != nil {
-	// 			// 	fmt.Println(err)
-	// 			// 	outLog.Error("tag", "")
-	// 			// }
-	// 			// if _, err := buf.Read(localBuffer); err != nil {
-	// 			// 	outLog.Info(containerId, string(localBuffer))
-	// 			// 	fmt.Println("Read line with data", string(localBuffer))
-	// 			// }
-
-	// 			fmt.Println("Read line")
-	// 			time.Sleep(1 * time.Second)
-	// 		} else {
-	// 			fmt.Println(buf.String())
-	// 			time.Sleep(1 * time.Second)
-	// 		}
-	// 	}
-
-	// }(containerId, &outBuff)
-
-	// //}(task, &outBuff, &errBuff)
-
-	// // read the stdout continuosly
-
-	// // // read the stderr continuosly
-	// // go func(cId string, buf bytes.Buffer) {
-	// // 	outLog := gantrylog.NewGantryLog()
-	// // 	for {
-	// // 		buf.WriteString("[")
-	// // 		buf.WriteString(cId)
-	// // 		buf.WriteString("] ")
-	// // 		if data, err := buf.ReadBytes(byte(10)); err != nil {
-	// // 			outLog.Error(containerId, string(data))
-	// // 		}
-	// // 	}
-
-	// // }(containerId, errBuff)
+		scanner := bufio.NewScanner(rr)
+		for scanner.Scan() {
+			clog.Info(scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			log.Errorln(err)
+		}
+	}(r, containerId, loggerInstance, f)
 
 }

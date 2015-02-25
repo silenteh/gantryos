@@ -1,11 +1,10 @@
 package logging
 
 import (
-	"bufio"
+	//"bufio"
 	"github.com/Sirupsen/logrus"
 	"github.com/silenteh/gantryos/config"
 	"os"
-	"time"
 )
 
 type gantrylog struct {
@@ -32,7 +31,6 @@ func NewGantryContainerLog(containerId, containerName string) LogInterface {
 
 func (gl gantrylog) Info(msg string) {
 	gl.log.WithFields(logrus.Fields{
-		"time":  time.Now().String(),
 		"cname": gl.containerName,
 		"cid":   gl.containerId,
 	}).Infoln(msg)
@@ -40,24 +38,33 @@ func (gl gantrylog) Info(msg string) {
 
 func (gl gantrylog) Error(msg string) {
 	gl.log.WithFields(logrus.Fields{
-		"time":  time.Now().String(),
 		"cname": gl.containerName,
 		"cid":   gl.containerId,
 	}).Errorln(msg)
 }
 
-func (gl gantrylog) FileWriter() (*os.File, *bufio.Writer) {
-	// // open output file
+func (gl gantrylog) ToFileWriter() *os.File {
+
 	fo, err := os.Create(gl.logName)
 	if err != nil {
 		gl.log.Errorln(err)
-		return nil, nil
+		return nil
 	}
 
-	// make a write buffer
-	w := bufio.NewWriter(fo)
-	w.WriteString("Logging for container " + gl.containerId + " initialized.\n")
-	w.Flush()
+	gl.log.Out = fo
 
-	return fo, w
+	return fo
+	// // // open output file
+	// fo, err := os.Create(gl.logName)
+	// if err != nil {
+	// 	gl.log.Errorln(err)
+	// 	return nil, nil
+	// }
+
+	// // make a write buffer
+	// w := bufio.NewWriter(fo)
+	// w.WriteString("Logging for container " + gl.containerId + " initialized.\n")
+	// w.Flush()
+
+	// return fo, w
 }
