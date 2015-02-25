@@ -53,6 +53,10 @@ func FileExists(fileName string) bool {
 	return false
 }
 
+func CreateDir(path string) error {
+	return os.MkdirAll(path, 0755)
+}
+
 func ReadFile(fileName string) []byte {
 	buf := bytes.NewBuffer(nil)
 
