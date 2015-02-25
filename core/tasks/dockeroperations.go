@@ -1,10 +1,9 @@
 package tasks
 
 import (
-	//clog "github.com/Sirupsen/logrus"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	log "github.com/golang/glog"
-	//gantrylog "github.com/silenteh/gantryos/core/logging"
+	gantrylog "github.com/silenteh/gantryos/core/logging"
 	"github.com/silenteh/gantryos/core/proto"
 	docker "github.com/silenteh/gantryos/core/tasks/docker"
 	"github.com/silenteh/gantryos/models"
@@ -34,6 +33,10 @@ type dockerService struct {
 	client           *dockerclient.Client
 	dockerEvents     chan *dockerclient.APIEvents
 	taskStatusEvents chan *models.TaskStatus
+}
+
+func init() {
+
 }
 
 // init a docker task and a docker client
@@ -573,21 +576,25 @@ func tailLogs(task dockerService, containerId string) {
 
 	// clog.
 
-	// opts := dockerclient.LogsOptions{
-	// 	Container:    containerId,
-	// 	OutputStream: &outBuff,
-	// 	ErrorStream:  &errBuff,
-	// 	Follow:       true,
-	// 	Stdout:       true,
-	// 	Stderr:       true,
-	// 	Timestamps:   true,
-	// 	Tail:         "all",
-	// }
+	// TODO: CONTAINER NAME !!!!
+	log := gantrylog.NewGantryContainerLog(containerId, containerId)
+	f, w := log.FileWriter()
+	defer w.Flush()
+	defer f.Close()
 
-	// if err := task.client.Logs(opts); err != nil {
-	// 	fmt.Println(err)
-	// 	log.Errorln("Failed to tail the container", containerId, err)
-	// }
+	opts := dockerclient.LogsOptions{
+		Container:    containerId,
+		OutputStream: w,
+		ErrorStream:  w,
+		Follow:       true,
+		Stdout:       true,
+		Stderr:       true,
+	}
+
+	if err := task.client.Logs(opts); err != nil {
+		fmt.Println(err)
+		log.Error(err.Error())
+	}
 
 	// fmt.Println("Logging on container started")
 	// //fmt.Println(outBuff.String())

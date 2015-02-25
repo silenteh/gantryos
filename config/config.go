@@ -72,7 +72,22 @@ func loadConfig() gantryOSConfig {
 		log.Fatalln("parsing config file: ", err.Error())
 	}
 
+	setDefaultConfigs(&localServerConfig)
+
 	return localServerConfig
+}
+
+func setDefaultConfigs(c *gantryOSConfig) {
+
+	// log dir
+	if c.Slave.ContainersLogDir == "" {
+		c.Slave.ContainersLogDir = "./logs"
+	}
+	// check if the Dir exists
+	if !utils.FileExists(c.Slave.ContainersLogDir) {
+		utils.CreateDir(c.Slave.ContainersLogDir)
+	}
+
 }
 
 func loadSlaveId() slaveInfo {

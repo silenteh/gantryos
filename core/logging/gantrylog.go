@@ -1,23 +1,63 @@
 package logging
 
 import (
-	log "github.com/golang/glog"
+	"bufio"
+	"github.com/Sirupsen/logrus"
+	"github.com/silenteh/gantryos/config"
+	"os"
+	"time"
 )
 
-type gantrylog struct{}
+type gantrylog struct {
+	log           *logrus.Logger
+	containerId   string
+	containerName string
+	logDir        string
+	logName       string
+}
 
-func NewGantryLog() LogInterface {
+func NewGantryContainerLog(containerId, containerName string) LogInterface {
 	var li LogInterface
-	gantry := gantrylog{}
+	logDir := config.GantryOSConfig.Slave.ContainersLogDir
+	gantry := gantrylog{
+		log:           newSlaveContainerLogger(),
+		containerId:   containerId,
+		containerName: containerName,
+		logDir:        logDir,
+		logName:       logDir + "/" + containerName + ".log",
+	}
 	li = gantry
 	return li
 }
 
-func (l gantrylog) Info(tag, data string) {
-	//log.Infoln(...)
-	log.Infoln(data)
+func (gl gantrylog) Info(msg string) {
+	gl.log.WithFields(logrus.Fields{
+		"time":  time.Now().String(),
+		"cname": gl.containerName,
+		"cid":   gl.containerId,
+	}).Infoln(msg)
 }
 
-func (l gantrylog) Error(tag, data string) {
-	log.Errorln(data)
+func (gl gantrylog) Error(msg string) {
+	gl.log.WithFields(logrus.Fields{
+		"time":  time.Now().String(),
+		"cname": gl.containerName,
+		"cid":   gl.containerId,
+	}).Errorln(msg)
+}
+
+func (gl gantrylog) FileWriter() (*os.File, *bufio.Writer) {
+	// // open output file
+	fo, err := os.Create(gl.logName)
+	if err != nil {
+		gl.log.Errorln(err)
+		return nil, nil
+	}
+
+	// make a write buffer
+	w := bufio.NewWriter(fo)
+	w.WriteString("Logging for container " + gl.containerId + " initialized.\n")
+	w.Flush()
+
+	return fo, w
 }

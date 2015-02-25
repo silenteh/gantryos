@@ -13,8 +13,8 @@ import (
 )
 
 func init() {
-	os.Setenv("DOCKER_HOST", "tcp://192.168.59.103:2376")
-	os.Setenv("DOCKER_CERT_PATH", "/Users/silenteh/.boot2docker/certs/boot2docker-vm")
+	os.Setenv("DOCKER_HOST", "tcp://192.168.59.105:2376")
+	os.Setenv("DOCKER_CERT_PATH", "/Users/scogno/.boot2docker/certs/boot2docker-vm")
 	flag.Parse()
 }
 
@@ -65,7 +65,7 @@ func TestStartDockerService(t *testing.T) {
 
 	fmt.Println("# Container status success")
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	removeVolumes := true
 	if err = service.Stop(containerId, removeVolumes); err != nil {
