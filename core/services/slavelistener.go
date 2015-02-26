@@ -3,15 +3,15 @@ package services
 import (
 	"fmt"
 	log "github.com/golang/glog"
-	//"github.com/silenteh/gantryos/core/proto"
+	"github.com/silenteh/gantryos/core/state"
 	"github.com/silenteh/gantryos/core/tasks"
 	"github.com/silenteh/gantryos/models"
 )
 
-func (slave *slaveServer) startSlaveListener() error {
+func (slave *slaveServer) startSlaveListener(stateDB state.StateDB) error {
 
 	// init the docker service
-	dockerService, err := tasks.StartDockerService()
+	dockerService, err := tasks.StartDockerService(stateDB)
 	if err != nil {
 		return err
 	}

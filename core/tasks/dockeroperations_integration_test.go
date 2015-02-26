@@ -5,6 +5,7 @@ package tasks
 import (
 	"flag"
 	"fmt"
+	"github.com/silenteh/gantryos/core/state"
 	"github.com/silenteh/gantryos/models"
 	"github.com/silenteh/gantryos/utils"
 	mock "github.com/silenteh/gantryos/utils/testing"
@@ -15,16 +16,27 @@ import (
 
 func init() {
 	os.Setenv("DOCKER_HOST", "tcp://192.168.59.103:2376")
-	os.Setenv("DOCKER_CERT_PATH", "/Users/silenteh/.boot2docker/certs/boot2docker-vm")
+	userHome := os.Getenv("HOME")
+	os.Setenv("DOCKER_CERT_PATH", userHome+"/.boot2docker/certs/boot2docker-vm")
 	flag.Parse()
 }
 
 func TestStartDockerService(t *testing.T) {
 	fmt.Println("Running integration tests...")
 
-	// start the docker service
-	service, err := StartDockerService()
+	dbName := "./docker_integration_tests.db"
+	utils.RemoveDir(dbName)
+
+	stateDb, err := state.InitSlaveDB(dbName)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start the docker service
+	service, err := StartDockerService(stateDb)
+	if err != nil {
+		stateDb.Close()
+		utils.RemoveDir(dbName)
 		t.Fatal(err)
 	}
 	fmt.Println("# Docker client started successfully")
@@ -78,7 +90,10 @@ func TestStartDockerService(t *testing.T) {
 	service.StopService()
 	//close(events)
 
+	stateDb.Close()
+
 	utils.RemoveDir("./logs")
+	utils.RemoveDir(dbName)
 
 	fmt.Println("Integration tests: OK")
 }

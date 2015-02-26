@@ -5,6 +5,7 @@ import (
 	"github.com/silenteh/gantryos/config"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/resources"
+	"github.com/silenteh/gantryos/core/state"
 	"github.com/silenteh/gantryos/models"
 	"time"
 )
@@ -110,7 +111,7 @@ func (s *slaveServer) startHeartBeats() {
 
 // Public methods
 
-func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) slaveServer {
+func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope, stateDB state.StateDB) slaveServer {
 
 	// create a new slave client
 	slave := newSlave(masterIp, masterPort, readerChannel, writerChannel)
@@ -125,7 +126,7 @@ func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope,
 	slave.startSlaveReader()
 
 	// start the loop for processing the data read from the master
-	slave.startSlaveListener()
+	slave.startSlaveListener(stateDB)
 
 	// start to send the heartbeats to the master
 	slave.startHeartBeats()

@@ -10,7 +10,7 @@ func TestInitSlaveDB(t *testing.T) {
 
 	key := "TEST"
 	value := "OK"
-
+	bucket := "test"
 	dbt, err := InitSlaveDB("./test_db.db")
 
 	if err != nil {
@@ -20,11 +20,11 @@ func TestInitSlaveDB(t *testing.T) {
 	defer dbt.Close()
 
 	for i := 0; i < 100; i++ {
-		dbt.Set(key, value)
+		dbt.Set(bucket, key, value)
 	}
 
 	// GET
-	if data, err := dbt.Get(key); err != nil {
+	if data, err := dbt.Get(bucket, key); err != nil {
 		t.Fatal(err)
 	} else {
 		if data != value {
@@ -33,12 +33,12 @@ func TestInitSlaveDB(t *testing.T) {
 	}
 
 	// EXISTS
-	if !dbt.Exists(key) {
+	if !dbt.Exists(bucket, key) {
 		t.Fatal("Key do not exist, but it supposed to !")
 	}
 
 	// GET ALL
-	values := dbt.GetAllTasks()
+	values := dbt.GetAllTasks(bucket)
 	if len(values) != 1 {
 		t.Fatal("Retrieving all values failed !")
 	}
@@ -47,17 +47,27 @@ func TestInitSlaveDB(t *testing.T) {
 		t.Fatal("Retrieving all values failed: the retrived key mismatches !")
 	}
 
+	// GET ALL KEY VALUES
+	keyValues := dbt.GetAllKeyValues(bucket)
+	if len(keyValues) != 1 {
+		t.Fatal("Retrieving all key values failed !")
+	}
+
+	if *keyValues[key] != value {
+		t.Fatal("Retrieving all key values failed: the retrived key mismatches !")
+	}
+
 	// DELETE
-	if err := dbt.Delete(key); err != nil {
+	if err := dbt.Delete(bucket, key); err != nil {
 		t.Fatal(err)
 	}
 
 	// EXISTS
-	if dbt.Exists(key) {
+	if dbt.Exists(bucket, key) {
 		t.Fatal("Key exists, but we deleted it previously !")
 	}
 
-	if data, err := dbt.Get(key); err != nil {
+	if data, err := dbt.Get(bucket, key); err != nil {
 		t.Fatal(err)
 	} else {
 		if data != "" {

@@ -5,6 +5,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/services"
+	"github.com/silenteh/gantryos/core/state"
 	"os"
 	"os/signal"
 	"time"
@@ -36,6 +37,13 @@ func main() {
 	signal.Notify(channelCtrlC, os.Interrupt, os.Kill)
 	// =============================================================
 
+	stateDb, err := state.InitSlaveDB("./gantryos.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer stateDb.Close()
+
 	// start the master
 	masterIp := "127.0.0.1"
 	masterPort := "6060"
@@ -46,7 +54,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 
 	// start the slave
-	services.StartSlave(masterIp, masterPort, slaveReaderChannel, slaveWriterChannel)
+	services.StartSlave(masterIp, masterPort, slaveReaderChannel, slaveWriterChannel, stateDb)
 	log.Infoln("Slave started")
 
 	// first flush

@@ -8,6 +8,8 @@ import (
 	docker "github.com/silenteh/gantryos/core/tasks/docker"
 	"github.com/silenteh/gantryos/models"
 
+	"github.com/silenteh/gantryos/core/state"
+
 	"bufio"
 	//"bytes"
 	"errors"
@@ -29,18 +31,20 @@ const (
 	channels_size                  = 1024
 )
 
+var (
+	taskIndexBucket      = "task2container"
+	containerIndexBucket = "container2task"
+)
+
 type dockerService struct {
 	client           *dockerclient.Client
 	dockerEvents     chan *dockerclient.APIEvents
 	taskStatusEvents chan *models.TaskStatus
-}
-
-func init() {
-
+	taskLookup       taskIndex
 }
 
 // init a docker task and a docker client
-func StartDockerService() (TaskInterface, error) {
+func StartDockerService(stateDB state.StateDB) (TaskInterface, error) {
 	var task TaskInterface
 	var err error
 
@@ -85,6 +89,7 @@ func StartDockerService() (TaskInterface, error) {
 		dockerEvents:     dockerEvents,
 		taskStatusEvents: taskEvents,
 		client:           client,
+		taskLookup:       NewTaskIndex(taskIndexBucket, containerIndexBucket, stateDB),
 	}
 
 	// monitor docker events
@@ -148,7 +153,7 @@ func (t dockerService) Start(taskInfo *proto.TaskInfo) (string, error) {
 
 	// update the taskIndex
 	taskInfo.TaskId = &containerId
-	addTaskId(containerId, taskInfo.GetGantryTaskId())
+	t.taskLookup.AddTaskId(containerId, taskInfo.GetGantryTaskId())
 
 	// send a signal
 	signalTaskStatus(t, taskInfo, container_started, nil)
@@ -163,8 +168,8 @@ func (t dockerService) Start(taskInfo *proto.TaskInfo) (string, error) {
 func (t dockerService) Stop(containerId string, removeVolumes bool) error {
 	err := stopDockerContainer(t, containerId)
 	if err == nil {
-		taskId := getTaskId(containerId)
-		removeTaskId(containerId, taskId)
+		taskId := t.taskLookup.GetTaskId(containerId)
+		t.taskLookup.RemoveTaskId(containerId, taskId)
 
 		opts := dockerclient.RemoveContainerOptions{
 			ID:            containerId,
@@ -212,7 +217,7 @@ func (task dockerService) startMonitor() {
 			}
 
 			// get the task ID from the in memory index
-			gantryTaskId := getTaskId(dEvent.ID)
+			gantryTaskId := t.taskLookup.GetTaskId(dEvent.ID)
 
 			// convert it to a model TaskStatus
 			taskStatus := &models.TaskStatus{
@@ -345,7 +350,7 @@ func stopDockerContainer(task dockerService, containerId string) error {
 func statusDockerContainer(task dockerService, containerId string) error {
 
 	// get the gantry task Id from the container id
-	gantryId := getTaskId(containerId)
+	gantryId := task.taskLookup.GetTaskId(containerId)
 	// create a task status
 	taskStatus := models.NewTaskStatusNoSlave(containerId, "", "", proto.TaskState_TASK_LOST)
 
