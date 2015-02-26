@@ -2,7 +2,7 @@ package state
 
 import (
 	"fmt"
-	//"github.com/silenteh/gantryos/utils"
+	"github.com/silenteh/gantryos/utils"
 	"testing"
 )
 
@@ -70,6 +70,8 @@ func TestInitSlaveDB(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		fmt.Println(filename)
+		utils.RemoveDir("./" + filename)
+		utils.RemoveDir("./test_db.db")
 	}
 
 	fmt.Println("- State: OK")
