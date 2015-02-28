@@ -22,8 +22,13 @@ func MakeGolangHelloTask() *models.Task {
 	container := models.NewContainer(name, image,
 		"golangtest", "", "", true, proto.ContainerInfo_BRIDGE, emptyVolumes, portsMapping, envs)
 
-	task := models.NewTask("golang_test_task", "1.0", slave, nil, nil, container, nil, nil)
-	//models.NewTask(name, version, slave, res, cmd, cont, disc, lbls)
+	cpu := models.NewCPUResource(float64(2048))
+	mem := models.NewCPUResource(float64(1024))
+
+	allResources := models.MakeResources(cpu, mem)
+
+	task := models.NewTask("golang_test_task", "1.0", slave, allResources, nil, container, nil, nil)
+
 	return task
 
 }

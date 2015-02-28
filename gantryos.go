@@ -47,7 +47,7 @@ func main() {
 	// start the master
 	masterIp := "127.0.0.1"
 	masterPort := "6060"
-	services.StartMaster(masterIp, masterPort, masterReaderChannel, masterWriterChannel)
+	services.StartMaster(masterIp, masterPort, masterReaderChannel, masterWriterChannel, stateDb)
 	log.Infoln("Master started at", masterIp, "on port", masterPort)
 
 	// wait for binding

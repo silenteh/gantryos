@@ -43,6 +43,16 @@ func (rs resources) ToProtoBuf() []*proto.Resource {
 
 // ======================================================================================
 
+func MakeResources(res ...*resource) *resources {
+
+	var allRes resources
+
+	allRes = res
+
+	return &allRes
+
+}
+
 func NewCPUResource(cpuValue float64) *resource {
 	return &resource{
 		Type:      CPU_RESOURCE_TYPE,

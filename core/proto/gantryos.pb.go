@@ -109,6 +109,7 @@ const (
 	ResourceType_DISK      ResourceType = 3
 	ResourceType_BANDWIDTH ResourceType = 4
 	ResourceType_GPU       ResourceType = 5
+	ResourceType_SWAP      ResourceType = 6
 )
 
 var ResourceType_name = map[int32]string{
@@ -118,6 +119,7 @@ var ResourceType_name = map[int32]string{
 	3: "DISK",
 	4: "BANDWIDTH",
 	5: "GPU",
+	6: "SWAP",
 }
 var ResourceType_value = map[string]int32{
 	"CPU":       0,
@@ -126,6 +128,7 @@ var ResourceType_value = map[string]int32{
 	"DISK":      3,
 	"BANDWIDTH": 4,
 	"GPU":       5,
+	"SWAP":      6,
 }
 
 func (x ResourceType) Enum() *ResourceType {
@@ -7189,7 +7192,7 @@ func NewPopulatedEnvironment_Variable(r randyGantryos, easy bool) *Environment_V
 func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 	this := &Resource{}
 	if r.Intn(10) != 0 {
-		v33 := ResourceType([]int32{0, 1, 2, 3, 4, 5}[r.Intn(6)])
+		v33 := ResourceType([]int32{0, 1, 2, 3, 4, 5, 6}[r.Intn(7)])
 		this.ResourceType = &v33
 	}
 	if r.Intn(10) != 0 {

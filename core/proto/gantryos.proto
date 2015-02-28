@@ -138,7 +138,8 @@ enum ResourceType {
   PORTS = 2;
   DISK = 3; 
   BANDWIDTH = 4;
-  GPU = 5;   
+  GPU = 5;
+  SWAP = 6;   
 }
 
 /**

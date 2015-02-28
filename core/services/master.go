@@ -8,6 +8,7 @@ import (
 	"github.com/silenteh/gantryos/config"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/resources"
+	"github.com/silenteh/gantryos/core/state"
 	"github.com/silenteh/gantryos/models"
 	"github.com/silenteh/gantryos/utils"
 	"strconv"
@@ -68,7 +69,7 @@ func (m *masterServer) initTcpServer() {
 	m.tcpServer.StartTCP()
 }
 
-func StartMaster(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) masterServer {
+func StartMaster(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope, stateDB state.StateDB) masterServer {
 
 	// cerate a new master instance
 	ms := newMaster(masterIp, masterPort, readerChannel, writerChannel)

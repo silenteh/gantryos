@@ -303,8 +303,10 @@ func startDockerContainer(task dockerService, taskInfo *proto.TaskInfo) (string,
 
 	config, hostConfig := newDockerConfig(taskInfo)
 
+	containerName := "gantryos-" + taskInfo.GetTaskId()
+
 	createContainerOptions := dockerclient.CreateContainerOptions{
-		Name:       taskInfo.GetTaskId(),
+		Name:       containerName,
 		Config:     &config,
 		HostConfig: &hostConfig,
 	}
@@ -430,10 +432,31 @@ func newDockerConfig(taskInfo *proto.TaskInfo) (dockerclient.Config, dockerclien
 		dockerVols[v.GetContainerPath()] = struct{}{}
 	}
 
+	cpu := int64(1024)               // 1024 shares
+	mem := int64(512 * 1024 * 1024)  // 512 Mb
+	swap := int64(512 * 1024 * 1024) // 512 Mb
+
+	for _, res := range taskInfo.GetResources() {
+		if res.GetResourceType() == proto.ResourceType_MEMORY {
+			mem = int64(res.GetScalar().GetValue())
+		}
+
+		if res.GetResourceType() == proto.ResourceType_CPU {
+			cpu = int64(res.GetScalar().GetValue())
+		}
+
+		if res.GetResourceType() == proto.ResourceType_SWAP {
+			swap = int64(res.GetScalar().GetValue())
+		}
+	}
+
 	config := dockerclient.Config{
 		Hostname:        taskInfo.GetContainer().GetHostname(),
 		Domainname:      taskInfo.GetContainer().GetDomainName(),
 		User:            taskInfo.GetContainer().GetUser().GetName(),
+		Memory:          mem,
+		CPUShares:       cpu,
+		MemorySwap:      swap,
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
