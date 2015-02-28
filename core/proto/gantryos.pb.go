@@ -540,8 +540,9 @@ type TaskInfo struct {
 	// or acted upon by Mesos. It is up to a service discovery system
 	// to use this information as needed and to handle tasks without
 	// service discovery information.
-	Discovery        *DiscoveryInfo `protobuf:"bytes,11,opt,name=discovery" json:"discovery,omitempty"`
-	XXX_unrecognized []byte         `json:"-"`
+	Discovery           *DiscoveryInfo `protobuf:"bytes,11,opt,name=discovery" json:"discovery,omitempty"`
+	RemoveVolumesOnStop *bool          `protobuf:"varint,12,opt,name=remove_volumes_on_stop" json:"remove_volumes_on_stop,omitempty"`
+	XXX_unrecognized    []byte         `json:"-"`
 }
 
 func (m *TaskInfo) Reset()      { *m = TaskInfo{} }
@@ -622,6 +623,13 @@ func (m *TaskInfo) GetDiscovery() *DiscoveryInfo {
 		return m.Discovery
 	}
 	return nil
+}
+
+func (m *TaskInfo) GetRemoveVolumesOnStop() bool {
+	if m != nil && m.RemoveVolumesOnStop != nil {
+		return *m.RemoveVolumesOnStop
+	}
+	return false
 }
 
 // *
@@ -2530,6 +2538,24 @@ func (m *TaskInfo) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemoveVolumesOnStop", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.RemoveVolumesOnStop = &b
 		default:
 			var sizeOfWire int
 			for {
@@ -5787,6 +5813,7 @@ func (this *TaskInfo) String() string {
 		`HealthCheck:` + strings.Replace(fmt1.Sprintf("%v", this.HealthCheck), "HealthCheck", "HealthCheck", 1) + `,`,
 		`Labels:` + strings.Replace(fmt1.Sprintf("%v", this.Labels), "Labels", "Labels", 1) + `,`,
 		`Discovery:` + strings.Replace(fmt1.Sprintf("%v", this.Discovery), "DiscoveryInfo", "DiscoveryInfo", 1) + `,`,
+		`RemoveVolumesOnStop:` + valueToStringGantryos(this.RemoveVolumesOnStop) + `,`,
 		`XXX_unrecognized:` + fmt1.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -6308,6 +6335,9 @@ func (m *TaskInfo) Size() (n int) {
 	if m.Discovery != nil {
 		l = m.Discovery.Size()
 		n += 1 + l + sovGantryos(uint64(l))
+	}
+	if m.RemoveVolumesOnStop != nil {
+		n += 2
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -7088,8 +7118,12 @@ func NewPopulatedTaskInfo(r randyGantryos, easy bool) *TaskInfo {
 	if r.Intn(10) != 0 {
 		this.Discovery = NewPopulatedDiscoveryInfo(r, easy)
 	}
+	if r.Intn(10) != 0 {
+		v21 := bool(r.Intn(2) == 0)
+		this.RemoveVolumesOnStop = &v21
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedGantryos(r, 12)
+		this.XXX_unrecognized = randUnrecognizedGantryos(r, 13)
 	}
 	return this
 }
@@ -7097,25 +7131,25 @@ func NewPopulatedTaskInfo(r randyGantryos, easy bool) *TaskInfo {
 func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 	this := &TaskStatus{}
 	if r.Intn(10) != 0 {
-		v21 := randStringGantryos(r)
-		this.TaskId = &v21
-	}
-	if r.Intn(10) != 0 {
 		v22 := randStringGantryos(r)
-		this.GantryTaskId = &v22
+		this.TaskId = &v22
 	}
 	if r.Intn(10) != 0 {
-		v23 := TaskState([]int32{1, 2, 3, 4, 5, 6, 7, 8, 9}[r.Intn(9)])
-		this.State = &v23
+		v23 := randStringGantryos(r)
+		this.GantryTaskId = &v23
 	}
 	if r.Intn(10) != 0 {
-		v24 := randStringGantryos(r)
-		this.Message = &v24
+		v24 := TaskState([]int32{1, 2, 3, 4, 5, 6, 7, 8, 9}[r.Intn(9)])
+		this.State = &v24
 	}
 	if r.Intn(10) != 0 {
-		v25 := r.Intn(100)
-		this.Data = make([]byte, v25)
-		for i := 0; i < v25; i++ {
+		v25 := randStringGantryos(r)
+		this.Message = &v25
+	}
+	if r.Intn(10) != 0 {
+		v26 := r.Intn(100)
+		this.Data = make([]byte, v26)
+		for i := 0; i < v26; i++ {
 			this.Data[i] = byte(r.Intn(256))
 		}
 	}
@@ -7123,15 +7157,15 @@ func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 		this.Slave = NewPopulatedSlaveInfo(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v26 := r.Float64()
+		v27 := r.Float64()
 		if r.Intn(2) == 0 {
-			v26 *= -1
+			v27 *= -1
 		}
-		this.Timestamp = &v26
+		this.Timestamp = &v27
 	}
 	if r.Intn(10) != 0 {
-		v27 := bool(r.Intn(2) == 0)
-		this.Healthy = &v27
+		v28 := bool(r.Intn(2) == 0)
+		this.Healthy = &v28
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 9)
@@ -7142,15 +7176,15 @@ func NewPopulatedTaskStatus(r randyGantryos, easy bool) *TaskStatus {
 func NewPopulatedFilters(r randyGantryos, easy bool) *Filters {
 	this := &Filters{}
 	if r.Intn(10) != 0 {
-		v28 := r.Float64()
+		v29 := r.Float64()
 		if r.Intn(2) == 0 {
-			v28 *= -1
+			v29 *= -1
 		}
-		this.RefuseSeconds = &v28
+		this.RefuseSeconds = &v29
 	}
 	if r.Intn(10) != 0 {
-		v29 := bool(r.Intn(2) == 0)
-		this.Rebalance = &v29
+		v30 := bool(r.Intn(2) == 0)
+		this.Rebalance = &v30
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7161,9 +7195,9 @@ func NewPopulatedFilters(r randyGantryos, easy bool) *Filters {
 func NewPopulatedEnvironment(r randyGantryos, easy bool) *Environment {
 	this := &Environment{}
 	if r.Intn(10) != 0 {
-		v30 := r.Intn(10)
-		this.Variables = make([]*Environment_Variable, v30)
-		for i := 0; i < v30; i++ {
+		v31 := r.Intn(10)
+		this.Variables = make([]*Environment_Variable, v31)
+		for i := 0; i < v31; i++ {
 			this.Variables[i] = NewPopulatedEnvironment_Variable(r, easy)
 		}
 	}
@@ -7176,12 +7210,12 @@ func NewPopulatedEnvironment(r randyGantryos, easy bool) *Environment {
 func NewPopulatedEnvironment_Variable(r randyGantryos, easy bool) *Environment_Variable {
 	this := &Environment_Variable{}
 	if r.Intn(10) != 0 {
-		v31 := randStringGantryos(r)
-		this.Name = &v31
+		v32 := randStringGantryos(r)
+		this.Name = &v32
 	}
 	if r.Intn(10) != 0 {
-		v32 := randStringGantryos(r)
-		this.Value = &v32
+		v33 := randStringGantryos(r)
+		this.Value = &v33
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7192,12 +7226,12 @@ func NewPopulatedEnvironment_Variable(r randyGantryos, easy bool) *Environment_V
 func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 	this := &Resource{}
 	if r.Intn(10) != 0 {
-		v33 := ResourceType([]int32{0, 1, 2, 3, 4, 5, 6}[r.Intn(7)])
-		this.ResourceType = &v33
+		v34 := ResourceType([]int32{0, 1, 2, 3, 4, 5, 6}[r.Intn(7)])
+		this.ResourceType = &v34
 	}
 	if r.Intn(10) != 0 {
-		v34 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
-		this.Type = &v34
+		v35 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
+		this.Type = &v35
 	}
 	if r.Intn(10) != 0 {
 		this.Scalar = NewPopulatedValue_Scalar(r, easy)
@@ -7209,8 +7243,8 @@ func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 		this.Set = NewPopulatedValue_Set(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v35 := randStringGantryos(r)
-		this.Role = &v35
+		v36 := randStringGantryos(r)
+		this.Role = &v36
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 7)
@@ -7221,8 +7255,8 @@ func NewPopulatedResource(r randyGantryos, easy bool) *Resource {
 func NewPopulatedValue(r randyGantryos, easy bool) *Value {
 	this := &Value{}
 	if r.Intn(10) != 0 {
-		v36 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
-		this.Type = &v36
+		v37 := Value_Type([]int32{0, 1, 2, 3}[r.Intn(4)])
+		this.Type = &v37
 	}
 	if r.Intn(10) != 0 {
 		this.Scalar = NewPopulatedValue_Scalar(r, easy)
@@ -7245,11 +7279,11 @@ func NewPopulatedValue(r randyGantryos, easy bool) *Value {
 func NewPopulatedValue_Scalar(r randyGantryos, easy bool) *Value_Scalar {
 	this := &Value_Scalar{}
 	if r.Intn(10) != 0 {
-		v37 := r.Float64()
+		v38 := r.Float64()
 		if r.Intn(2) == 0 {
-			v37 *= -1
+			v38 *= -1
 		}
-		this.Value = &v37
+		this.Value = &v38
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 2)
@@ -7260,12 +7294,12 @@ func NewPopulatedValue_Scalar(r randyGantryos, easy bool) *Value_Scalar {
 func NewPopulatedValue_Range(r randyGantryos, easy bool) *Value_Range {
 	this := &Value_Range{}
 	if r.Intn(10) != 0 {
-		v38 := uint64(r.Uint32())
-		this.Begin = &v38
+		v39 := uint64(r.Uint32())
+		this.Begin = &v39
 	}
 	if r.Intn(10) != 0 {
-		v39 := uint64(r.Uint32())
-		this.End = &v39
+		v40 := uint64(r.Uint32())
+		this.End = &v40
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7276,9 +7310,9 @@ func NewPopulatedValue_Range(r randyGantryos, easy bool) *Value_Range {
 func NewPopulatedValue_Ranges(r randyGantryos, easy bool) *Value_Ranges {
 	this := &Value_Ranges{}
 	if r.Intn(10) != 0 {
-		v40 := r.Intn(10)
-		this.Range = make([]*Value_Range, v40)
-		for i := 0; i < v40; i++ {
+		v41 := r.Intn(10)
+		this.Range = make([]*Value_Range, v41)
+		for i := 0; i < v41; i++ {
 			this.Range[i] = NewPopulatedValue_Range(r, easy)
 		}
 	}
@@ -7291,9 +7325,9 @@ func NewPopulatedValue_Ranges(r randyGantryos, easy bool) *Value_Ranges {
 func NewPopulatedValue_Set(r randyGantryos, easy bool) *Value_Set {
 	this := &Value_Set{}
 	if r.Intn(10) != 0 {
-		v41 := r.Intn(10)
-		this.Item = make([]string, v41)
-		for i := 0; i < v41; i++ {
+		v42 := r.Intn(10)
+		this.Item = make([]string, v42)
+		for i := 0; i < v42; i++ {
 			this.Item[i] = randStringGantryos(r)
 		}
 	}
@@ -7306,8 +7340,8 @@ func NewPopulatedValue_Set(r randyGantryos, easy bool) *Value_Set {
 func NewPopulatedValue_Text(r randyGantryos, easy bool) *Value_Text {
 	this := &Value_Text{}
 	if r.Intn(10) != 0 {
-		v42 := randStringGantryos(r)
-		this.Value = &v42
+		v43 := randStringGantryos(r)
+		this.Value = &v43
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 2)
@@ -7321,36 +7355,36 @@ func NewPopulatedHealthCheck(r randyGantryos, easy bool) *HealthCheck {
 		this.Http = NewPopulatedHealthCheck_HTTP(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v43 := r.Float64()
-		if r.Intn(2) == 0 {
-			v43 *= -1
-		}
-		this.DelaySeconds = &v43
-	}
-	if r.Intn(10) != 0 {
 		v44 := r.Float64()
 		if r.Intn(2) == 0 {
 			v44 *= -1
 		}
-		this.IntervalSeconds = &v44
+		this.DelaySeconds = &v44
 	}
 	if r.Intn(10) != 0 {
 		v45 := r.Float64()
 		if r.Intn(2) == 0 {
 			v45 *= -1
 		}
-		this.TimeoutSeconds = &v45
+		this.IntervalSeconds = &v45
 	}
 	if r.Intn(10) != 0 {
-		v46 := r.Uint32()
-		this.Failures = &v46
-	}
-	if r.Intn(10) != 0 {
-		v47 := r.Float64()
+		v46 := r.Float64()
 		if r.Intn(2) == 0 {
-			v47 *= -1
+			v46 *= -1
 		}
-		this.GracePeriodSeconds = &v47
+		this.TimeoutSeconds = &v46
+	}
+	if r.Intn(10) != 0 {
+		v47 := r.Uint32()
+		this.Failures = &v47
+	}
+	if r.Intn(10) != 0 {
+		v48 := r.Float64()
+		if r.Intn(2) == 0 {
+			v48 *= -1
+		}
+		this.GracePeriodSeconds = &v48
 	}
 	if r.Intn(10) != 0 {
 		this.Command = NewPopulatedCommandInfo(r, easy)
@@ -7364,17 +7398,17 @@ func NewPopulatedHealthCheck(r randyGantryos, easy bool) *HealthCheck {
 func NewPopulatedHealthCheck_HTTP(r randyGantryos, easy bool) *HealthCheck_HTTP {
 	this := &HealthCheck_HTTP{}
 	if r.Intn(10) != 0 {
-		v48 := r.Uint32()
-		this.Port = &v48
+		v49 := r.Uint32()
+		this.Port = &v49
 	}
 	if r.Intn(10) != 0 {
-		v49 := randStringGantryos(r)
-		this.Path = &v49
+		v50 := randStringGantryos(r)
+		this.Path = &v50
 	}
 	if r.Intn(10) != 0 {
-		v50 := r.Intn(100)
-		this.Statuses = make([]uint32, v50)
-		for i := 0; i < v50; i++ {
+		v51 := r.Intn(100)
+		this.Statuses = make([]uint32, v51)
+		for i := 0; i < v51; i++ {
 			this.Statuses[i] = r.Uint32()
 		}
 	}
@@ -7387,9 +7421,9 @@ func NewPopulatedHealthCheck_HTTP(r randyGantryos, easy bool) *HealthCheck_HTTP 
 func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 	this := &CommandInfo{}
 	if r.Intn(10) != 0 {
-		v51 := r.Intn(10)
-		this.Uris = make([]*CommandInfo_URI, v51)
-		for i := 0; i < v51; i++ {
+		v52 := r.Intn(10)
+		this.Uris = make([]*CommandInfo_URI, v52)
+		for i := 0; i < v52; i++ {
 			this.Uris[i] = NewPopulatedCommandInfo_URI(r, easy)
 		}
 	}
@@ -7397,26 +7431,26 @@ func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 		this.Environment = NewPopulatedEnvironment(r, easy)
 	}
 	if r.Intn(10) != 0 {
-		v52 := bool(r.Intn(2) == 0)
-		this.Shell = &v52
+		v53 := bool(r.Intn(2) == 0)
+		this.Shell = &v53
 	}
 	if r.Intn(10) != 0 {
-		v53 := randStringGantryos(r)
-		this.Value = &v53
+		v54 := randStringGantryos(r)
+		this.Value = &v54
 	}
 	if r.Intn(10) != 0 {
-		v54 := r.Intn(10)
-		this.Arguments = make([]string, v54)
-		for i := 0; i < v54; i++ {
+		v55 := r.Intn(10)
+		this.Arguments = make([]string, v55)
+		for i := 0; i < v55; i++ {
 			this.Arguments[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v55 := r.Float64()
+		v56 := r.Float64()
 		if r.Intn(2) == 0 {
-			v55 *= -1
+			v56 *= -1
 		}
-		this.GracePeriodSeconds = &v55
+		this.GracePeriodSeconds = &v56
 	}
 	if r.Intn(10) != 0 {
 		this.User = NewPopulatedUser(r, easy)
@@ -7430,16 +7464,16 @@ func NewPopulatedCommandInfo(r randyGantryos, easy bool) *CommandInfo {
 func NewPopulatedCommandInfo_URI(r randyGantryos, easy bool) *CommandInfo_URI {
 	this := &CommandInfo_URI{}
 	if r.Intn(10) != 0 {
-		v56 := randStringGantryos(r)
-		this.Value = &v56
-	}
-	if r.Intn(10) != 0 {
-		v57 := bool(r.Intn(2) == 0)
-		this.Executable = &v57
+		v57 := randStringGantryos(r)
+		this.Value = &v57
 	}
 	if r.Intn(10) != 0 {
 		v58 := bool(r.Intn(2) == 0)
-		this.Extract = &v58
+		this.Executable = &v58
+	}
+	if r.Intn(10) != 0 {
+		v59 := bool(r.Intn(2) == 0)
+		this.Extract = &v59
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7450,20 +7484,20 @@ func NewPopulatedCommandInfo_URI(r randyGantryos, easy bool) *CommandInfo_URI {
 func NewPopulatedVolume(r randyGantryos, easy bool) *Volume {
 	this := &Volume{}
 	if r.Intn(10) != 0 {
-		v59 := randStringGantryos(r)
-		this.ContainerPath = &v59
-	}
-	if r.Intn(10) != 0 {
 		v60 := randStringGantryos(r)
-		this.HostPath = &v60
+		this.ContainerPath = &v60
 	}
 	if r.Intn(10) != 0 {
-		v61 := bool(r.Intn(2) == 0)
-		this.Persistent = &v61
+		v61 := randStringGantryos(r)
+		this.HostPath = &v61
 	}
 	if r.Intn(10) != 0 {
-		v62 := Volume_Mode([]int32{1, 2}[r.Intn(2)])
-		this.Mode = &v62
+		v62 := bool(r.Intn(2) == 0)
+		this.Persistent = &v62
+	}
+	if r.Intn(10) != 0 {
+		v63 := Volume_Mode([]int32{1, 2}[r.Intn(2)])
+		this.Mode = &v63
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 5)
@@ -7474,86 +7508,86 @@ func NewPopulatedVolume(r randyGantryos, easy bool) *Volume {
 func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 	this := &ContainerInfo{}
 	if r.Intn(10) != 0 {
-		v63 := randStringGantryos(r)
-		this.Image = &v63
+		v64 := randStringGantryos(r)
+		this.Image = &v64
 	}
 	if r.Intn(10) != 0 {
-		v64 := ContainerInfo_Network([]int32{0, 1, 2, 3, 4}[r.Intn(5)])
-		this.Network = &v64
+		v65 := ContainerInfo_Network([]int32{0, 1, 2, 3, 4}[r.Intn(5)])
+		this.Network = &v65
 	}
 	if r.Intn(10) != 0 {
-		v65 := r.Intn(10)
-		this.PortMappings = make([]*ContainerInfo_PortMapping, v65)
-		for i := 0; i < v65; i++ {
+		v66 := r.Intn(10)
+		this.PortMappings = make([]*ContainerInfo_PortMapping, v66)
+		for i := 0; i < v66; i++ {
 			this.PortMappings[i] = NewPopulatedContainerInfo_PortMapping(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v66 := bool(r.Intn(2) == 0)
-		this.Privileged = &v66
-	}
-	if r.Intn(10) != 0 {
 		v67 := bool(r.Intn(2) == 0)
-		this.ForcePullImage = &v67
+		this.Privileged = &v67
 	}
 	if r.Intn(10) != 0 {
-		v68 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
-		this.Type = &v68
+		v68 := bool(r.Intn(2) == 0)
+		this.ForcePullImage = &v68
 	}
 	if r.Intn(10) != 0 {
-		v69 := r.Intn(10)
-		this.Volumes = make([]*Volume, v69)
-		for i := 0; i < v69; i++ {
+		v69 := ContainerInfo_Type([]int32{1, 2, 3}[r.Intn(3)])
+		this.Type = &v69
+	}
+	if r.Intn(10) != 0 {
+		v70 := r.Intn(10)
+		this.Volumes = make([]*Volume, v70)
+		for i := 0; i < v70; i++ {
 			this.Volumes[i] = NewPopulatedVolume(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v70 := randStringGantryos(r)
-		this.Hostname = &v70
-	}
-	if r.Intn(10) != 0 {
 		v71 := randStringGantryos(r)
-		this.DomainName = &v71
+		this.Hostname = &v71
 	}
 	if r.Intn(10) != 0 {
-		v72 := r.Intn(10)
-		this.EntryPoint = make([]string, v72)
-		for i := 0; i < v72; i++ {
+		v72 := randStringGantryos(r)
+		this.DomainName = &v72
+	}
+	if r.Intn(10) != 0 {
+		v73 := r.Intn(10)
+		this.EntryPoint = make([]string, v73)
+		for i := 0; i < v73; i++ {
 			this.EntryPoint[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v73 := r.Intn(10)
-		this.Cmd = make([]string, v73)
-		for i := 0; i < v73; i++ {
+		v74 := r.Intn(10)
+		this.Cmd = make([]string, v74)
+		for i := 0; i < v74; i++ {
 			this.Cmd[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v74 := r.Intn(10)
-		this.SecurityOptions = make([]string, v74)
-		for i := 0; i < v74; i++ {
+		v75 := r.Intn(10)
+		this.SecurityOptions = make([]string, v75)
+		for i := 0; i < v75; i++ {
 			this.SecurityOptions[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v75 := r.Intn(10)
-		this.OnBuild = make([]string, v75)
-		for i := 0; i < v75; i++ {
+		v76 := r.Intn(10)
+		this.OnBuild = make([]string, v76)
+		for i := 0; i < v76; i++ {
 			this.OnBuild[i] = randStringGantryos(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v76 := randStringGantryos(r)
-		this.WorkingDir = &v76
-	}
-	if r.Intn(10) != 0 {
 		v77 := randStringGantryos(r)
-		this.MacAddress = &v77
+		this.WorkingDir = &v77
 	}
 	if r.Intn(10) != 0 {
 		v78 := randStringGantryos(r)
-		this.VolumesFrom = &v78
+		this.MacAddress = &v78
+	}
+	if r.Intn(10) != 0 {
+		v79 := randStringGantryos(r)
+		this.VolumesFrom = &v79
 	}
 	if r.Intn(10) != 0 {
 		this.Environments = NewPopulatedEnvironment(r, easy)
@@ -7569,13 +7603,13 @@ func NewPopulatedContainerInfo(r randyGantryos, easy bool) *ContainerInfo {
 
 func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *ContainerInfo_PortMapping {
 	this := &ContainerInfo_PortMapping{}
-	v79 := r.Uint32()
-	this.HostPort = &v79
 	v80 := r.Uint32()
-	this.ContainerPort = &v80
+	this.HostPort = &v80
+	v81 := r.Uint32()
+	this.ContainerPort = &v81
 	if r.Intn(10) != 0 {
-		v81 := randStringGantryos(r)
-		this.Protocol = &v81
+		v82 := randStringGantryos(r)
+		this.Protocol = &v82
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7586,22 +7620,22 @@ func NewPopulatedContainerInfo_PortMapping(r randyGantryos, easy bool) *Containe
 func NewPopulatedUser(r randyGantryos, easy bool) *User {
 	this := &User{}
 	if r.Intn(10) != 0 {
-		v82 := randStringGantryos(r)
-		this.Name = &v82
-	}
-	if r.Intn(10) != 0 {
-		v83 := r.Int31()
-		if r.Intn(2) == 0 {
-			v83 *= -1
-		}
-		this.Uid = &v83
+		v83 := randStringGantryos(r)
+		this.Name = &v83
 	}
 	if r.Intn(10) != 0 {
 		v84 := r.Int31()
 		if r.Intn(2) == 0 {
 			v84 *= -1
 		}
-		this.Gid = &v84
+		this.Uid = &v84
+	}
+	if r.Intn(10) != 0 {
+		v85 := r.Int31()
+		if r.Intn(2) == 0 {
+			v85 *= -1
+		}
+		this.Gid = &v85
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7611,10 +7645,10 @@ func NewPopulatedUser(r randyGantryos, easy bool) *User {
 
 func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 	this := &Parameter{}
-	v85 := randStringGantryos(r)
-	this.Key = &v85
 	v86 := randStringGantryos(r)
-	this.Value = &v86
+	this.Key = &v86
+	v87 := randStringGantryos(r)
+	this.Value = &v87
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
 	}
@@ -7624,9 +7658,9 @@ func NewPopulatedParameter(r randyGantryos, easy bool) *Parameter {
 func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 	this := &Parameters{}
 	if r.Intn(10) != 0 {
-		v87 := r.Intn(10)
-		this.Parameter = make([]*Parameter, v87)
-		for i := 0; i < v87; i++ {
+		v88 := r.Intn(10)
+		this.Parameter = make([]*Parameter, v88)
+		for i := 0; i < v88; i++ {
 			this.Parameter[i] = NewPopulatedParameter(r, easy)
 		}
 	}
@@ -7639,9 +7673,9 @@ func NewPopulatedParameters(r randyGantryos, easy bool) *Parameters {
 func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 	this := &Labels{}
 	if r.Intn(10) != 0 {
-		v88 := r.Intn(10)
-		this.Labels = make([]*Label, v88)
-		for i := 0; i < v88; i++ {
+		v89 := r.Intn(10)
+		this.Labels = make([]*Label, v89)
+		for i := 0; i < v89; i++ {
 			this.Labels[i] = NewPopulatedLabel(r, easy)
 		}
 	}
@@ -7653,11 +7687,11 @@ func NewPopulatedLabels(r randyGantryos, easy bool) *Labels {
 
 func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 	this := &Label{}
-	v89 := randStringGantryos(r)
-	this.Key = &v89
+	v90 := randStringGantryos(r)
+	this.Key = &v90
 	if r.Intn(10) != 0 {
-		v90 := randStringGantryos(r)
-		this.Value = &v90
+		v91 := randStringGantryos(r)
+		this.Value = &v91
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 3)
@@ -7667,15 +7701,15 @@ func NewPopulatedLabel(r randyGantryos, easy bool) *Label {
 
 func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 	this := &Port{}
-	v91 := r.Uint32()
-	this.Number = &v91
-	if r.Intn(10) != 0 {
-		v92 := randStringGantryos(r)
-		this.Name = &v92
-	}
+	v92 := r.Uint32()
+	this.Number = &v92
 	if r.Intn(10) != 0 {
 		v93 := randStringGantryos(r)
-		this.Protocol = &v93
+		this.Name = &v93
+	}
+	if r.Intn(10) != 0 {
+		v94 := randStringGantryos(r)
+		this.Protocol = &v94
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedGantryos(r, 4)
@@ -7686,9 +7720,9 @@ func NewPopulatedPort(r randyGantryos, easy bool) *Port {
 func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 	this := &Ports{}
 	if r.Intn(10) != 0 {
-		v94 := r.Intn(10)
-		this.Ports = make([]*Port, v94)
-		for i := 0; i < v94; i++ {
+		v95 := r.Intn(10)
+		this.Ports = make([]*Port, v95)
+		for i := 0; i < v95; i++ {
 			this.Ports[i] = NewPopulatedPort(r, easy)
 		}
 	}
@@ -7701,24 +7735,24 @@ func NewPopulatedPorts(r randyGantryos, easy bool) *Ports {
 func NewPopulatedDiscoveryInfo(r randyGantryos, easy bool) *DiscoveryInfo {
 	this := &DiscoveryInfo{}
 	if r.Intn(10) != 0 {
-		v95 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
-		this.Visibility = &v95
-	}
-	if r.Intn(10) != 0 {
-		v96 := randStringGantryos(r)
-		this.Name = &v96
+		v96 := DiscoveryInfo_Visibility([]int32{0, 1, 2}[r.Intn(3)])
+		this.Visibility = &v96
 	}
 	if r.Intn(10) != 0 {
 		v97 := randStringGantryos(r)
-		this.Environment = &v97
+		this.Name = &v97
 	}
 	if r.Intn(10) != 0 {
 		v98 := randStringGantryos(r)
-		this.Location = &v98
+		this.Environment = &v98
 	}
 	if r.Intn(10) != 0 {
 		v99 := randStringGantryos(r)
-		this.Version = &v99
+		this.Location = &v99
+	}
+	if r.Intn(10) != 0 {
+		v100 := randStringGantryos(r)
+		this.Version = &v100
 	}
 	if r.Intn(10) != 0 {
 		this.Ports = NewPopulatedPorts(r, easy)
@@ -7749,9 +7783,9 @@ func randUTF8RuneGantryos(r randyGantryos) rune {
 	return res
 }
 func randStringGantryos(r randyGantryos) string {
-	v100 := r.Intn(100)
-	tmps := make([]rune, v100)
-	for i := 0; i < v100; i++ {
+	v101 := r.Intn(100)
+	tmps := make([]rune, v101)
+	for i := 0; i < v101; i++ {
 		tmps[i] = randUTF8RuneGantryos(r)
 	}
 	return string(tmps)
@@ -7773,11 +7807,11 @@ func randFieldGantryos(data []byte, r randyGantryos, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
-		v101 := r.Int63()
+		v102 := r.Int63()
 		if r.Intn(2) == 0 {
-			v101 *= -1
+			v102 *= -1
 		}
-		data = encodeVarintPopulateGantryos(data, uint64(v101))
+		data = encodeVarintPopulateGantryos(data, uint64(v102))
 	case 1:
 		data = encodeVarintPopulateGantryos(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -8122,6 +8156,16 @@ func (m *TaskInfo) MarshalTo(data []byte) (n int, err error) {
 			return 0, err
 		}
 		i += n7
+	}
+	if m.RemoveVolumesOnStop != nil {
+		data[i] = 0x60
+		i++
+		if *m.RemoveVolumesOnStop {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -9516,6 +9560,7 @@ func (this *TaskInfo) GoString() string {
 		`HealthCheck:` + fmt2.Sprintf("%#v", this.HealthCheck),
 		`Labels:` + fmt2.Sprintf("%#v", this.Labels),
 		`Discovery:` + fmt2.Sprintf("%#v", this.Discovery),
+		`RemoveVolumesOnStop:` + valueToGoStringGantryos(this.RemoveVolumesOnStop, "bool"),
 		`XXX_unrecognized:` + fmt2.Sprintf("%#v", this.XXX_unrecognized) + `}`}, ", ")
 	return s
 }
@@ -10392,6 +10437,15 @@ func (this *TaskInfo) VerboseEqual(that interface{}) error {
 	if !this.Discovery.Equal(that1.Discovery) {
 		return fmt3.Errorf("Discovery this(%v) Not Equal that(%v)", this.Discovery, that1.Discovery)
 	}
+	if this.RemoveVolumesOnStop != nil && that1.RemoveVolumesOnStop != nil {
+		if *this.RemoveVolumesOnStop != *that1.RemoveVolumesOnStop {
+			return fmt3.Errorf("RemoveVolumesOnStop this(%v) Not Equal that(%v)", *this.RemoveVolumesOnStop, *that1.RemoveVolumesOnStop)
+		}
+	} else if this.RemoveVolumesOnStop != nil {
+		return fmt3.Errorf("this.RemoveVolumesOnStop == nil && that.RemoveVolumesOnStop != nil")
+	} else if that1.RemoveVolumesOnStop != nil {
+		return fmt3.Errorf("RemoveVolumesOnStop this(%v) Not Equal that(%v)", this.RemoveVolumesOnStop, that1.RemoveVolumesOnStop)
+	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return fmt3.Errorf("XXX_unrecognized this(%v) Not Equal that(%v)", this.XXX_unrecognized, that1.XXX_unrecognized)
 	}
@@ -10482,6 +10536,15 @@ func (this *TaskInfo) Equal(that interface{}) bool {
 		return false
 	}
 	if !this.Discovery.Equal(that1.Discovery) {
+		return false
+	}
+	if this.RemoveVolumesOnStop != nil && that1.RemoveVolumesOnStop != nil {
+		if *this.RemoveVolumesOnStop != *that1.RemoveVolumesOnStop {
+			return false
+		}
+	} else if this.RemoveVolumesOnStop != nil {
+		return false
+	} else if that1.RemoveVolumesOnStop != nil {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

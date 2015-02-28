@@ -166,7 +166,7 @@ func (t dockerService) Start(taskInfo *proto.TaskInfo) (string, error) {
 }
 
 func (t dockerService) Stop(containerId string, removeVolumes bool) error {
-	err := stopDockerContainer(t, containerId)
+	err := stopDockerContainer(t, removeVolumes, containerId)
 	if err == nil {
 		taskId := t.taskLookup.GetTaskId(containerId)
 		t.taskLookup.RemoveTaskId(containerId, taskId)
@@ -303,7 +303,7 @@ func startDockerContainer(task dockerService, taskInfo *proto.TaskInfo) (string,
 
 	config, hostConfig := newDockerConfig(taskInfo)
 
-	containerName := "gantryos-" + taskInfo.GetTaskId()
+	containerName := "gantryos-" + taskInfo.GetGantryTaskId()
 
 	createContainerOptions := dockerclient.CreateContainerOptions{
 		Name:       containerName,
@@ -322,7 +322,7 @@ func startDockerContainer(task dockerService, taskInfo *proto.TaskInfo) (string,
 }
 
 // stops and remove the container
-func stopDockerContainer(task dockerService, containerId string) error {
+func stopDockerContainer(task dockerService, removeVolumesOnStop bool, containerId string) error {
 	var err error
 	err = task.client.StopContainer(containerId, 30) // waits max 30 seconds
 	if err != nil {
@@ -339,8 +339,8 @@ func stopDockerContainer(task dockerService, containerId string) error {
 		// try to remove the container
 		dockerRemoveOpts := dockerclient.RemoveContainerOptions{
 			ID:            containerId,
-			Force:         true,  // removes the container even though it's running
-			RemoveVolumes: false, // this forces removal of mounted volumes - we need a flag on the task
+			Force:         true,                // removes the container even though it's running
+			RemoveVolumes: removeVolumesOnStop, // this forces removal of mounted volumes
 		}
 
 		err = task.client.RemoveContainer(dockerRemoveOpts)

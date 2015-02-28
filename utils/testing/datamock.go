@@ -27,7 +27,9 @@ func MakeGolangHelloTask() *models.Task {
 
 	allResources := models.MakeResources(cpu, mem)
 
-	task := models.NewTask("golang_test_task", "1.0", slave, allResources, nil, container, nil, nil)
+	removeVolumesOnStop := true
+
+	task := models.NewTask("golang_test_task", "1.0", removeVolumesOnStop, slave, allResources, nil, container, nil, nil)
 
 	return task
 

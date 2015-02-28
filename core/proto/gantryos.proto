@@ -98,6 +98,7 @@ message TaskInfo {
   // service discovery information.
   optional DiscoveryInfo discovery = 11;
   
+  optional bool remove_volumes_on_stop = 12;
   // Not yet
   // we will enable it only if needed.
   // Usually Labels are enough.
