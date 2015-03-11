@@ -22,13 +22,13 @@ func AddPort(bridgeName, portName string) error {
 }
 
 func SetVLAN(bridgeName string) error {
-
+	return nil
 }
 
 func SetDockerIP(bridgeName, dockerIp string) error {
-
+	return nil
 }
 
 func SetDockerVLAN(bridgeName, dockerIp string, VLANId int) error {
-
+	return nil
 }
