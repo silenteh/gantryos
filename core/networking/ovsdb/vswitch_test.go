@@ -1,3 +1,5 @@
+// +build integration
+
 package networking
 
 import (
@@ -7,10 +9,9 @@ import (
 
 func TestNewOVSDBClient(t *testing.T) {
 
-	client, err := NewOVSDBClient("192.168.1.117", "6633")
+	client, err := NewOVSDBClient("172.21.2.54", "6633")
 	if err != nil {
-		//t.Error(err)
-		return
+		t.Error(err)
 	}
 
 	defer client.Close()

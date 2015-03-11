@@ -2,7 +2,6 @@ package networking
 
 import (
 	"bufio"
-	//"bytes"
 	"encoding/json"
 	"io"
 	"math/rand"
@@ -59,6 +58,8 @@ func decodeClientResponse(r io.Reader, reply interface{}) error {
 	if c.Result != nil {
 		return json.Unmarshal(*c.Result, reply)
 	}
+	//fmt.Println(*c.Result)
+	//fmt.Println("")
 	return nil
 }
 

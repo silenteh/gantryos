@@ -81,13 +81,16 @@ func NewOVSDBClient(host, port string) (*vswitchManager, error) {
 	manager.client = c
 	manager.schema = make(map[string]DatabaseSchema)
 	manager.cache = make(map[string]map[string]Row)
+	manager.handlers = []NotificationHandler{}
 
 	// monitor and register the changes in the manager cache
 	notifier := Notifier{manager: manager}
 	manager.Register(notifier)
 
 	// get the schema
-	manager.GetSchema("Open_vSwitch")
+	if _, err := manager.GetSchema("Open_vSwitch"); err != nil {
+		return &manager, err
+	}
 
 	// start to monitor and populate the cache
 	initial, err := manager.MonitorAll("Open_vSwitch", "")
@@ -116,9 +119,6 @@ func (manager vswitchManager) ListDBs() []string {
 }
 
 func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
-	//var resp interface{}
-	//manager.client.Call("get_schema", []string{db}, &resp)
-	//return resp
 
 	var reply DatabaseSchema
 	err := manager.client.Call("get_schema", []string{db}, &reply)
@@ -131,65 +131,18 @@ func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
 }
 
 func (manager vswitchManager) AddBridge(bridgeName string) {
-	namedUuid := "gantryos"
 
-	port := make(map[string]interface{})
-	//interfaces := make(map[string]interface{})
-	//interfaces["named-uuid"] = "new_interface"
-	port["name"] = bridgeName
+	// SELECT EXAMPLE
+	// condition := NewCondition("_uuid", "==", UUID{manager.GetRootUUID()})
+	// insertBridge := selectBaseOp(condition)
 
-	//port["interfaces"] = []map[string]interface{}{}
-	insertPort := Operation{
-		Op:       "insert",
-		Table:    "Port",
-		Row:      port,
-		UUIDName: bridgeName + "_port",
+	// INSERT INTERFACE
+	operations := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
+
+	reply, err := manager.Transact("Open_vSwitch", operations...)
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	// bridge row to insert
-	portLink := make(map[string]interface{})
-	portLink["named-uuid"] = bridgeName + "_port"
-
-	bridge := make(map[string]interface{})
-	bridge["name"] = bridgeName
-	bridge["ports"] = []interface{}{portLink}
-	bridge["named-uuid"] = "gantryos"
-
-	// simple insert operation
-	insertOp := Operation{
-		Op:       "insert",
-		Table:    "Bridge",
-		Row:      bridge,
-		UUIDName: namedUuid,
-	}
-
-	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
-	mutateUuid := []UUID{UUID{namedUuid}}
-	mutateSet, _ := NewOvsSet(mutateUuid)
-	mutation := NewMutation("bridges", "insert", mutateSet)
-	condition := NewCondition("_uuid", "==", UUID{manager.GetRootUUID()})
-
-	// simple mutate operation
-	mutateOp := Operation{
-		Op:        "mutate",
-		Table:     "Open_vSwitch",
-		Mutations: []interface{}{mutation},
-		Where:     []interface{}{condition},
-	}
-
-	// // 	// simple insert operation
-	// brInterface := make(map[string]interface{})
-	// brInterface["name"] = bridgeName
-	// brInterface["type"] = "internal"
-	// insertInterface := Operation{
-	// 	Op:       "insert",
-	// 	Table:    "Interface",
-	// 	Row:      brInterface,
-	// 	UUIDName: "new_interface",
-	// }
-
-	operations := []Operation{insertPort, insertOp, mutateOp}
-	reply, _ := manager.Transact("Open_vSwitch", operations...)
 
 	if len(reply) < len(operations) {
 		fmt.Println("Number of Replies should be atleast equal to number of Operations")
@@ -205,10 +158,12 @@ func (manager vswitchManager) AddBridge(bridgeName string) {
 		}
 	}
 
+	//fmt.Println(reply[0])
+
 	//manager.AddPort(bridgeName)
-	// if ok {
-	// 	fmt.Println("Bridge Addition Successful : ", reply[0].UUID.GoUuid)
-	// }
+	if len(reply) > 0 {
+		fmt.Println("Bridge Addition Successful : ", reply[0].UUID.GoUuid)
+	}
 }
 
 func (manager vswitchManager) AddPort(bridgeName string) {
@@ -506,6 +461,7 @@ type Notifier struct {
 }
 
 func (n Notifier) Update(context interface{}, tableUpdates TableUpdates) {
+	fmt.Println("Got update from monitor")
 	n.manager.populateCache(tableUpdates)
 	for k, v := range tableUpdates.Updates {
 		log.Infoln(k, v)
@@ -513,12 +469,15 @@ func (n Notifier) Update(context interface{}, tableUpdates TableUpdates) {
 	}
 }
 func (n Notifier) Locked([]interface{}) {
+	fmt.Println("Got locked from monitor")
 	log.Infoln("Locked")
 }
 func (n Notifier) Stolen([]interface{}) {
+	fmt.Println("Got stolen from monitor")
 	log.Infoln("Stolen")
 }
 func (n Notifier) Echo([]interface{}) {
+	fmt.Println("Got echo from monitor")
 	log.Infoln("Echo")
 }
 

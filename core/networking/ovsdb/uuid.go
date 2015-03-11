@@ -44,3 +44,12 @@ func (u UUID) validateUUID() error {
 
 	return nil
 }
+
+func newNamedUUID(id string) []string {
+
+	//uuidMap := make(map[string]string)
+	//uuidMap["named-uuid"] = id
+	//return []map[string]string{uuidMap}
+	return []string{"named-uuid", id}
+
+}
