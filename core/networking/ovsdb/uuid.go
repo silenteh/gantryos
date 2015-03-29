@@ -1,13 +1,26 @@
-package networking
+package ovsdb
 
 import (
 	"encoding/json"
 	"errors"
+	//"fmt"
+	//"reflect"
 	"regexp"
 )
 
 type UUID struct {
 	GoUuid string `json:"uuid"`
+}
+
+func ParseOVSDBUUID(data interface{}) string {
+
+	if array, ok := data.([]interface{}); ok {
+		uuid := array[1].(string)
+		return uuid //string(array[1])
+	}
+
+	return ""
+
 }
 
 // <set> notation requires special marshaling

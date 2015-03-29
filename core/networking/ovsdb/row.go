@@ -1,4 +1,4 @@
-package networking
+package ovsdb
 
 import "encoding/json"
 

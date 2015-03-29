@@ -1,20 +1,22 @@
-package networking
+package ovsdb
 
 // http://json-rpc.org/wiki/specification
 
 import (
 	//"fmt"
-	//"github.com/socketplane/libovsdb"
-
+	//"encoding/json"
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"reflect"
-	//"io"
-
-	//"net/rpc"
-	//"net/rpc/jsonrpc"
+	"time"
+	//"time"
+	//"code.google.com/p/go-uuid/uuid"
+	"encoding/json"
+	//"strconv"
 )
+
+//==========================================
 
 //==========================================
 // RPC Codec
@@ -32,21 +34,14 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%v", e.Data)
 }
 
-type ovsdbOperation string
-
-type monitor struct {
-	string
-	int
-	ovsdbOperation
-}
-
 type vswitchManager struct {
-	host     string
-	port     string
-	client   *rpcjJsonClient
-	handlers []NotificationHandler
+	host   string
+	port   string
+	client *rpcjJsonClient
+	//handlers []NotificationHandler
 	schema   map[string]DatabaseSchema
 	cache    map[string]map[string]Row
+	vpcCache vswitch
 }
 
 type NotificationHandler interface {
@@ -63,13 +58,11 @@ type NotificationHandler interface {
 	Echo([]interface{})
 }
 
+var transactCounter = 0
+
 func NewOVSDBClient(host, port string) (*vswitchManager, error) {
 
 	manager := vswitchManager{}
-	// c, err := jsonrpc.Dial("tcp4", host+":"+port)
-	// if err != nil {
-	// 	return &manager, err
-	// }
 
 	c := NewRPCJsonClient(host, port)
 	if err := c.Connect(); err != nil {
@@ -78,25 +71,27 @@ func NewOVSDBClient(host, port string) (*vswitchManager, error) {
 
 	manager.host = host
 	manager.port = port
-	manager.client = c
+	manager.client = &c
 	manager.schema = make(map[string]DatabaseSchema)
 	manager.cache = make(map[string]map[string]Row)
-	manager.handlers = []NotificationHandler{}
 
 	// monitor and register the changes in the manager cache
 	notifier := Notifier{manager: manager}
 	manager.Register(notifier)
 
-	// get the schema
+	//get the schema
 	if _, err := manager.GetSchema("Open_vSwitch"); err != nil {
 		return &manager, err
 	}
 
-	// start to monitor and populate the cache
+	//start to monitor and populate the cache
 	initial, err := manager.MonitorAll("Open_vSwitch", "")
 	if err != nil {
 		return &manager, err
 	}
+
+	//fmt.Println(initial)
+
 	manager.populateCache(*initial)
 
 	return &manager, nil
@@ -108,269 +103,113 @@ func (manager vswitchManager) Close() error {
 }
 
 func (manager vswitchManager) Echo() ([]string, error) {
-	var resp []string
-	return resp, manager.client.Call("echo", []string{"ping"}, &resp)
+	var response []string
+	dataChan, err := manager.client.Call("echo", []string{"ping"}, true)
+	if err != nil {
+		return response, err
+	}
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &response)
+	case <-time.After(5 * time.Second):
+		err = errors.New("Echo request timed out")
+	}
+	return response, err
 }
 
-func (manager vswitchManager) ListDBs() []string {
-	var resp []string
-	manager.client.Call("list_dbs", []string{""}, &resp)
-	return resp
+func (manager vswitchManager) ListDBs() ([]string, error) {
+	var response []string
+	dataChan, err := manager.client.Call("list_dbs", []string{}, true)
+	if err != nil {
+		return response, err
+	}
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &response)
+	case <-time.After(5 * time.Second):
+		err = errors.New("List DBs request timed out")
+	}
+
+	return response, err
 }
 
 func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
 
-	var reply DatabaseSchema
-	err := manager.client.Call("get_schema", []string{db}, &reply)
+	var dbSchema DatabaseSchema
+	dataChan, err := manager.client.Call("get_schema", []string{db}, true)
 	if err != nil {
+		//fmt.Println("ERROR GETTING DB SCHEMA !", err)
 		return nil, err
-	} else {
-		manager.schema[db] = reply
 	}
-	return &reply, err
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &dbSchema)
+		if err == nil {
+			manager.schema[db] = dbSchema
+		}
+	case <-time.After(5 * time.Second):
+		err = errors.New("Get schema request timed out")
+	}
+
+	return &dbSchema, err
 }
 
-func (manager vswitchManager) AddBridge(bridgeName string) {
+func (manager vswitchManager) AddBridge(bridgeName string) error {
 
 	// SELECT EXAMPLE
 	// condition := NewCondition("_uuid", "==", UUID{manager.GetRootUUID()})
 	// insertBridge := selectBaseOp(condition)
 
 	// INSERT INTERFACE
+	fmt.Println("ROOT UUID", manager.GetRootUUID())
 	operations := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
 
-	reply, err := manager.Transact("Open_vSwitch", operations...)
+	_, err := manager.Transact("Open_vSwitch", "ADD_BRIDGE", operations...)
+
+	return err
+}
+
+func (manager *vswitchManager) DeleteBridge(bridgeName string) error {
+
+	// get the uuid of the br0
+	uuidBridge, err := getBridgeUUID(bridgeName, manager)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
-	if len(reply) < len(operations) {
-		fmt.Println("Number of Replies should be atleast equal to number of Operations")
-	}
-	//ok := true
-	for i, o := range reply {
-		if o.Error != "" && i < len(operations) {
-			fmt.Println("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i])
-			//ok = false
-		} else if o.Error != "" {
-			fmt.Println("Transaction Failed due to an error :", o.Error)
-			//ok = false
-		}
+	// PORT
+	uuidPort, err := getPortUUID(bridgeName, manager)
+	if err != nil {
+		return err
 	}
 
-	//fmt.Println(reply[0])
-
-	//manager.AddPort(bridgeName)
-	if len(reply) > 0 {
-		fmt.Println("Bridge Addition Successful : ", reply[0].UUID.GoUuid)
+	// INTERFACE
+	uuidInterface, err := getPortUUID(bridgeName, manager)
+	if err != nil {
+		return err
 	}
+
+	if err := deleteInterface(uuidInterface, manager); err != nil {
+		return err
+	}
+
+	if err := deletePort(uuidPort, manager); err != nil {
+		return err
+	}
+
+	if err := deleteBridge(manager.GetRootUUID(), uuidBridge, manager); err != nil {
+		return err
+	}
+
+	return nil
+
 }
-
-func (manager vswitchManager) AddPort(bridgeName string) {
-	//namedUuid := "gantryos"
-	// bridge row to insert
-	//bridge := make(map[string]interface{})
-	//bridge["name"] = bridgeName
-	// 	// simple insert operation
-	port := make(map[string]interface{})
-	//interfaces := make(map[string]interface{})
-	//interfaces["named-uuid"] = "new_interface"
-	port["name"] = bridgeName
-	//port["interfaces"] = []map[string]interface{}{}
-	insertPort := Operation{
-		Op:       "insert",
-		Table:    "Port",
-		Row:      port,
-		UUIDName: bridgeName + "_port",
-	}
-
-	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
-	// mutateUuid := []UUID{UUID{bridgeName + "_port"}}
-	// mutateSet, _ := NewOvsSet(mutateUuid)
-	// mutation := NewMutation("ports", "insert", mutateSet)
-	// condition := NewCondition("_uuid", "==", UUID{"gantryos"})
-
-	// // simple mutate operation
-	// mutateOp := Operation{
-	// 	Op:        "mutate",
-	// 	Table:     "Bridge",
-	// 	Mutations: []interface{}{mutation},
-	// 	Where:     []interface{}{condition},
-	// }
-
-	// // 	// simple insert operation
-	// brInterface := make(map[string]interface{})
-	// brInterface["name"] = bridgeName
-	// brInterface["type"] = "internal"
-	// insertInterface := Operation{
-	// 	Op:       "insert",
-	// 	Table:    "Interface",
-	// 	Row:      brInterface,
-	// 	UUIDName: "new_interface",
-	// }
-
-	operations := []Operation{insertPort}
-	reply, _ := manager.Transact("Open_vSwitch", operations...)
-
-	if len(reply) < len(operations) {
-		fmt.Println("Number of Replies should be atleast equal to number of Operations")
-	}
-	//ok := true
-	for i, o := range reply {
-		if o.Error != "" && i < len(operations) {
-			fmt.Println("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i])
-			//ok = false
-		} else if o.Error != "" {
-			fmt.Println("Transaction Failed due to an error :", o.Error)
-			//ok = false
-		}
-	}
-	// if ok {
-	// 	fmt.Println("Bridge Addition Successful : ", reply[0].UUID.GoUuid)
-	// }
-}
-
-// func (manager vswitchManager) AddBridge(name string) interface{} {
-
-// 	bridges := make(map[string]interface{})
-
-// 	firstSwitch := make(map[string]interface{})
-// 	firstSwitch["named-uuid"] = "test_switch"
-// 	bridges["bridges"] = []map[string]interface{}{firstSwitch}
-// 	// simple insert operation
-// 	insertSwitch := Operation{
-// 		Op:       "insert",
-// 		Table:    "Open_vSwitch",
-// 		Row:      bridges,
-// 		UUIDName: "test_switch",
-// 	}
-
-// 	// simple insert operation
-// 	brInterface := make(map[string]interface{})
-// 	brInterface["name"] = name
-// 	brInterface["type"] = "internal"
-// 	insertInterface := Operation{
-// 		Op:       "insert",
-// 		Table:    "Interface",
-// 		Row:      brInterface,
-// 		UUIDName: "new_interface",
-// 	}
-
-// 	// simple insert operation
-// 	port := make(map[string]interface{})
-// 	interfaces := make(map[string]interface{})
-// 	interfaces["named-uuid"] = "new_interface"
-// 	port["name"] = name
-// 	port["interfaces"] = []map[string]interface{}{interfaces}
-// 	insertPort := Operation{
-// 		Op:       "insert",
-// 		Table:    "Port",
-// 		Row:      port,
-// 		UUIDName: "new_port",
-// 	}
-
-// 	// simple insert operation
-// 	bridge := make(map[string]interface{})
-// 	bridgesMap := make(map[string]interface{})
-// 	bridgesMap["named-uuid"] = "new_port"
-// 	bridge["name"] = name
-// 	bridge["ports"] = bridgesMap
-// 	insertBridge := Operation{
-// 		Op:       "insert",
-// 		Table:    "Bridge",
-// 		Row:      bridge,
-// 		UUIDName: "new_bridge",
-// 	}
-
-// 	// namedUuid := "new_switch"
-// 	// // bridge row to insert
-// 	// bridge := make(map[string]interface{})
-// 	// bridge["name"] = name
-
-// 	// // simple insert operation
-// 	// insertOp := Operation{
-// 	// 	Op:       "insert",
-// 	// 	Table:    "Bridge",
-// 	// 	Row:      bridge,
-// 	// 	UUIDName: namedUuid,
-// 	// }
-
-// 	// // Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
-// 	// mutateUuid := []UUID{UUID{namedUuid}}
-// 	// mutateSet, _ := NewOvsSet(mutateUuid)
-// 	// mutation := NewMutation("bridges", "insert", mutateSet)
-// 	//condition := NewCondition("_uuid", "==", UUID{"00000000-0000-0000-0000-000000000000"})
-
-// 	// // simple mutate operation
-// 	// mutateOp := Operation{
-// 	// 	Op:        "mutate",
-// 	// 	Table:     "Open_vSwitch",
-// 	// 	Mutations: []interface{}{mutation},
-// 	// 	Where:     []interface{}{},
-// 	// }
-
-// 	operations := []Operation{insertSwitch, insertInterface, insertPort, insertBridge}
-// 	args := NewTransactArgs("Open_vSwitch", operations...)
-// 	//reply, _ := //ovs.Transact("Open_vSwitch", operations...)
-
-// 	var resp interface{}
-
-// 	manager.client.Call("transact", args, &resp)
-// 	return resp
-
-// 	// args := `
-// 	//        {
-// 	//            "row": {
-// 	//                "bridges": [
-// 	//                    "named-uuid",
-// 	//                    "new_bridge"
-// 	//                ]
-// 	//            },
-// 	//            "table": "Open_vSwitch",
-// 	//            "uuid-name": "new_switch",
-// 	//            "op": "insert"
-// 	//        },
-// 	//        {
-// 	//            "row": {
-// 	//                "name": "br1",
-// 	//                "type": "internal"
-// 	//            },
-// 	//            "table": "Interface",
-// 	//            "uuid-name": "new_interface",
-// 	//            "op": "insert"
-// 	//        },
-// 	//        {
-// 	//            "row": {
-// 	//                "name": "br1",
-// 	//                "interfaces": [
-// 	//                    "named-uuid",
-// 	//                    "new_interface"
-// 	//                ]
-// 	//            },
-// 	//            "table": "Port",
-// 	//            "uuid-name": "new_port",
-// 	//            "op": "insert"
-// 	//        },
-// 	//        {
-// 	//            "row": {
-// 	//                "name": "br1",
-// 	//                "ports": [
-// 	//                    "named-uuid",
-// 	//                    "new_port"
-// 	//                ]
-// 	//            },
-// 	//            "table": "Bridge",
-// 	//            "uuid-name": "new_bridge",
-// 	//            "op": "insert"
-// 	//        }
-// 	//    `
-
-// 	// var resp interface{}
-
-// 	// manager.client.Call("transact", []string{"Open_vSwitch", args}, &resp)
-// 	// // return resp
-
-// }
 
 func (manager vswitchManager) Monitor() interface{} {
 
@@ -378,7 +217,7 @@ func (manager vswitchManager) Monitor() interface{} {
 }
 
 func (manager vswitchManager) Register(handler NotificationHandler) {
-	manager.handlers = append(manager.handlers, handler)
+	manager.client.AddNotificationHandler(handler)
 }
 
 // Convenience method to monitor every table/column
@@ -406,7 +245,7 @@ func (manager vswitchManager) MonitorAll(database string, jsonContext interface{
 	return manager.monitor(database, jsonContext, requests)
 }
 
-// RFC 7047 : monitor
+// // RFC 7047 : monitor
 func (manager vswitchManager) monitor(database string, jsonContext interface{}, requests map[string]MonitorRequest) (*TableUpdates, error) {
 	var reply TableUpdates
 
@@ -414,7 +253,11 @@ func (manager vswitchManager) monitor(database string, jsonContext interface{}, 
 
 	// This totally sucks. Refer to golang JSON issue #6213
 	var response map[string]map[string]RowUpdate
-	err := manager.client.Call("monitor", args, &response)
+	dataChan, err := manager.client.Call("monitor", args, true)
+
+	data := <-dataChan
+	err = json.Unmarshal(data, &response)
+
 	reply = getTableUpdatesFromRawUnmarshal(response)
 	if err != nil {
 		return nil, err
@@ -449,6 +292,13 @@ func (manager vswitchManager) populateCache(updates TableUpdates) {
 			empty := Row{}
 			if !reflect.DeepEqual(row.New, empty) {
 				manager.cache[table][uuid] = row.New
+
+				switch table {
+				case "Bridge":
+				case "Port":
+				case "Interface":
+				}
+
 			} else {
 				delete(manager.cache[table], uuid)
 			}
@@ -461,45 +311,149 @@ type Notifier struct {
 }
 
 func (n Notifier) Update(context interface{}, tableUpdates TableUpdates) {
-	fmt.Println("Got update from monitor")
+	//fmt.Println("Got update from monitor")
+	log.Infoln("Update received")
 	n.manager.populateCache(tableUpdates)
-	for k, v := range tableUpdates.Updates {
-		log.Infoln(k, v)
-		fmt.Println(k, v)
-	}
+	// for k, v := range tableUpdates.Updates {
+	// 	log.Infoln(k, v)
+	// 	fmt.Println(k, v)
+	// }
 }
 func (n Notifier) Locked([]interface{}) {
-	fmt.Println("Got locked from monitor")
+	//fmt.Println("Got locked from monitor")
 	log.Infoln("Locked")
 }
 func (n Notifier) Stolen([]interface{}) {
-	fmt.Println("Got stolen from monitor")
+	//fmt.Println("Got stolen from monitor")
 	log.Infoln("Stolen")
 }
 func (n Notifier) Echo([]interface{}) {
-	fmt.Println("Got echo from monitor")
+	//fmt.Println("Got echo from monitor")
 	log.Infoln("Echo")
+
 }
 
 // func (n Notifier) Disconnected() {
 // 	n.manager.client.Close()
 // }
 
-func (manager vswitchManager) Transact(database string, operation ...Operation) ([]OperationResult, error) {
-	var reply []OperationResult
-	db, ok := manager.schema[database]
-	if !ok {
-		return nil, errors.New("invalid Database Schema")
-	}
+func (manager *vswitchManager) Transact(database, description string, operation ...Operation) ([]OperationResult, error) {
+	var err error
+	var response []OperationResult
+	// db, ok := manager.schema[database]
+	// if !ok {
+	// 	return nil, errors.New("invalid Database Schema")
+	// }
 
-	if ok := db.validateOperations(operation...); !ok {
-		return nil, errors.New("Validation failed for the operation")
-	}
+	// if ok := db.validateOperations(operation...); !ok {
+	// 	return nil, errors.New("Validation failed for the operation")
+	// }
 
 	args := NewTransactArgs(database, operation...)
-	err := manager.client.Call("transact", args, &reply)
+
+	// // Increment the counter
+	transactCounter++
+	// // LOCK id
+	//id := strconv.Itoa(transactCounter)
+
+	// // LOCK response
+	//var locked map[string]bool
+
+	// // Lock call
+	//manager.client.Call("lock", id, &locked)
+
+	// fmt.Println("LOCKED: =====> ", locked)
+	// for !locked["locked"] {
+	// 	fmt.Println("Loop", "LOCKING.......")
+	// 	manager.client.Call("lock", id, &locked)
+	// 	time.Sleep(500 * time.Millisecond)
+	// }
+
+	//manager.lock(id)
+	//defer manager.unlock(id)
+
+	dataChan, err := manager.client.Call("transact", args, true)
 	if err != nil {
-		return nil, err
+		fmt.Println("TRANSACT:", err)
+		return response, err
 	}
-	return reply, nil
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &response)
+	case <-time.After(10 * time.Second):
+		err = errors.New(description + ": Transact request timed out")
+	}
+
+	return response, err
+
+	// UNLOCK Response
+	//var unlocked map[string]bool
+
+	// UNLOCK ID
+	//id = NewLockArgs("unlock_" + strconv.Itoa(transactCounter))
+	//manager.client.Call("unlock", id, &unlocked)
+
+	// switch reply.(type) {
+	// case string:
+	// 	fmt.Println("STRING:", reply.(string))
+	// 	return nil, errors.New("Got back a string")
+	// case []interface{}:
+	// 	fmt.Println("INTERFACE:", reply)
+	// 	var result []OperationResult
+	// 	data, _ := json.Marshal(reply)
+	// 	json.Unmarshal(data, &result)
+	// 	return result, nil
+	// default:
+	// 	fmt.Println(reply)
+	// }
+
+	// if err != nil {
+	// 	//manager.client.Call("unlock", id, &unlocked)
+	// 	//fmt.Println("UNLOCKED: =====> ", unlocked)
+	// 	fmt.Println("FAILED", err)
+	// 	return nil, err
+	// }
+	//manager.client.Call("unlock", id, &unlocked)
+	//fmt.Println("UNLOCKED: =====> ", unlocked)
+	//return nil, nil
+}
+
+func (manager *vswitchManager) lock(trasnactionId string) {
+	var locked map[string]bool
+	id := NewLockArgs("lock_" + trasnactionId)
+
+	dataChan, err := manager.client.Call("lock", id, true)
+	if err != nil {
+		log.Errorln("LOCK:", err)
+		return
+	}
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &locked)
+	case <-time.After(10 * time.Second):
+		err = errors.New("LOCK" + ": Transact request timed out")
+	}
+}
+
+func (manager *vswitchManager) unlock(trasnactionId string) {
+	var locked map[string]bool
+	id := NewLockArgs("unlock_" + trasnactionId)
+
+	dataChan, err := manager.client.Call("unlock", id, true)
+	if err != nil {
+		log.Errorln("UNLOCK:", err)
+		return
+	}
+
+	// blocks
+	select {
+	case data := <-dataChan:
+		err = json.Unmarshal(data, &locked)
+	case <-time.After(10 * time.Second):
+		err = errors.New("UNLOCK" + ": Transact request timed out")
+	}
 }

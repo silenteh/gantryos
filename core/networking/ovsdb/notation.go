@@ -1,4 +1,4 @@
-package networking
+package ovsdb
 
 import "encoding/json"
 
@@ -14,6 +14,7 @@ type Operation struct {
 	Where     []interface{}            `json:"where,omitempty"`
 	Until     string                   `json:"until,omitempty"`
 	UUIDName  string                   `json:"uuid-name,omitempty"`
+	Durable   bool                     `json:"durable,omitempty"`
 }
 
 // MonitorRequest represents a monitor request according to RFC7047

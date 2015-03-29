@@ -1,20 +1,26 @@
 // +build integration
 
-package networking
+package ovsdb
 
 import (
 	"fmt"
 	"testing"
+	"time"
 )
+
+var ovsdbTestServer string = "192.168.1.107"
 
 func TestNewOVSDBClient(t *testing.T) {
 
-	client, err := NewOVSDBClient("172.21.2.54", "6633")
+	client, err := NewOVSDBClient(ovsdbTestServer, "6633")
 	if err != nil {
 		t.Error(err)
+		fmt.Println("Client failed to instantiate or connect. All following requests will fail")
 	}
 
 	defer client.Close()
+
+	time.Sleep(5 * time.Second)
 
 	if ping, err := client.Echo(); err != nil {
 		t.Error(err)
@@ -24,10 +30,13 @@ func TestNewOVSDBClient(t *testing.T) {
 		}
 	}
 
-	dbs := client.ListDBs()
+	dbs, err := client.ListDBs()
+	if err != nil {
+		t.Error(err)
+	}
 	fmt.Println(dbs)
 	if len(dbs) == 0 {
-		t.Error("Error getting the list of DBs")
+		t.Fatal("Error getting the list of DBs")
 	}
 
 	if dbs[0] != "Open_vSwitch" {
@@ -44,10 +53,23 @@ func TestNewOVSDBClient(t *testing.T) {
 		t.Error("Got an empty root UUID !")
 	}
 
-	client.AddBridge("br0")
+	//time.Sleep(3 * time.Second)
 
-	client.Close()
+	if err := client.AddBridge("br0"); err != nil {
+		t.Error(err)
+	}
+
+	// // set VLAN
+	//time.Sleep(3 * time.Second)
+
+	if err := client.DeleteBridge("br0"); err != nil {
+		t.Error(err)
+	}
+
+	//time.Sleep(5 * time.Second)
 
 	fmt.Println("- OVSDB Client")
+
+	time.Sleep(5 * time.Second)
 
 }
