@@ -1,18 +1,27 @@
 package ovsdb
 
 import (
-//"errors"
-//"fmt"
+	"encoding/json"
+	"net"
 )
 
 // MODELS
 
 // local slave switch
-type vswitch struct {
-	RootId string // ovsdb root UUID
-	Id     string // bridge UUID
-	Name   string
-	VPCs   map[string]vpc
+type Vswitch struct {
+	RootId  string // ovsdb root UUID
+	Id      string // bridge UUID
+	Name    string
+	VPCs    map[string]vpc
+	Address address
+}
+
+type address struct {
+	DHCP    bool          // are the info set via DHCP ?
+	address net.IPAddr    // ip address and netmask
+	gateway net.IPAddr    // gateway
+	dns     []net.IPAddr  // dns config
+	iface   net.Interface // this is the interface we attach the vswitch to
 }
 
 // can contain multiple VPCs
@@ -32,11 +41,24 @@ type vPort struct {
 
 // each port has an interface
 type vInterface struct {
-	Id   string // uuid
-	Name string
+	Id      string // uuid
+	Name    string
+	Address address
 }
 
-func (vswitch *vswitch) AddVPC(name, network string, vlan int) {
+func (vswitch *Vswitch) toJson() ([]byte, error) {
+	return json.Marshal(vswitch)
+}
+
+func (vswitch *Vswitch) save() error {
+	return nil
+}
+
+func load() error {
+	return nil
+}
+
+func (vswitch *Vswitch) AddVPC(name, network string, vlan int) {
 	vpc := vpc{
 		Name:    name,
 		Network: network,
@@ -97,11 +119,11 @@ func (port vPort) AddInterface(interfaceName string, manager *vswitchManager) er
 
 // }
 
-func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager *vswitchManager) (*vswitch, error) {
+func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager *vswitchManager) (*Vswitch, error) {
 
 	exists, id := bridgeExists(bridgeName, manager)
 
-	vswitch := vswitch{
+	vswitch := Vswitch{
 		RootId: rootUUID,
 		Name:   bridgeName,
 		VPCs:   make(map[string]vpc),

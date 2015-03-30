@@ -41,7 +41,7 @@ type vswitchManager struct {
 	//handlers []NotificationHandler
 	schema   map[string]DatabaseSchema
 	cache    map[string]map[string]Row
-	vpcCache vswitch
+	vpcCache Vswitch
 }
 
 type NotificationHandler interface {

@@ -307,8 +307,36 @@ func getPortUUID(portName string, manager *vswitchManager) (string, error) {
 
 }
 
-func getAllPorts(portName string, manager *vswitchManager) (string, error) {
-	condition := NewCondition("name", "==", portName)
+// returns the UUIDs of the ports setup on the bridge
+func getAllBridgePorts(bridgeUUID string, manager *vswitchManager) ([]string, error) {
+	condition := NewCondition("_uuid", "==", UUID{bridgeUUID})
+
+	selectPortOp := Operation{
+		Op:    "select",
+		Table: "Bridge",
+		Where: []interface{}{condition},
+	}
+	operations := []Operation{selectPortOp}
+
+	ops := NewTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_ALL_PORT_UUID", ops)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data[0].Rows) > 0 {
+		set, err := NewOvsSet(data[0].Rows[0]["ports"])
+		return set.GetUUIDs(), err
+	}
+
+	return []string{}, nil
+
+}
+
+// returns the UUIDs of the ports setup on the bridge
+func getAllPortInterfaces(portUUID string, manager *vswitchManager) ([]string, error) {
+	condition := NewCondition("_uuid", "==", UUID{portUUID})
 
 	selectPortOp := Operation{
 		Op:    "select",
@@ -319,17 +347,17 @@ func getAllPorts(portName string, manager *vswitchManager) (string, error) {
 
 	ops := NewTransactArgs("Open_vSwitch", false, operations...)
 
-	data, err := manager.Transact("Open_vSwitch", "GET_PORT_UUID", ops)
+	data, err := manager.Transact("Open_vSwitch", "GET_ALL_INTERFACES_UUID", ops)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	uuidPort := data[0].UUID.GoUuid
 	if len(data[0].Rows) > 0 {
-		uuidPort = ParseOVSDBUUID(data[0].Rows[0]["_uuid"])
+		set, err := NewOvsSet(data[0].Rows[0]["interfaces"])
+		return set.GetUUIDs(), err
 	}
 
-	return uuidPort, nil
+	return []string{}, nil
 
 }
 

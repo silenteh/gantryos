@@ -1,9 +1,8 @@
 // +build integration
-
 package ovsdb
 
 import (
-	"fmt"
+	//"fmt"
 	"testing"
 	//"time"
 )
@@ -42,8 +41,7 @@ func TestNewVSwitch(t *testing.T) {
 
 	if port := vswitch.VPCs["default"].Ports["br2"]; port.Id != "" {
 		port.AddInterface("br2_additional", manager)
+		port.AddInterface("br2_additional_1", manager)
 	}
-
-	fmt.Println("DONE")
 
 }

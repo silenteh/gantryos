@@ -30,3 +30,14 @@ ovsdb-server --remote=ptcp:6633 --remote=db:Open_vSwitch,Open_vSwitch,manager_op
 echo "openvswitch " >> /etc/modules
 echo "gre" >> /etc/modules
 echo "libcrc32c" >> /etc/modules
+
+####
+Every slave has a vswitch. When the slave starts the vswitch is initialized.
+
+Every slave keeps a state of its vswitch
+
+The master controls the vswitch on each slave by sending normal tasks to the slaves
+
+The master keeps a state of the configuration of the various VPC, which translates to ports and interfaces on each vswitch on each slave
+
+The master in the future will act as a data flow controller

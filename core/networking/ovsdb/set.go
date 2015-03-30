@@ -3,6 +3,7 @@ package ovsdb
 import (
 	"encoding/json"
 	"errors"
+	//"fmt"
 	"reflect"
 )
 
@@ -15,6 +16,28 @@ import (
 
 type OvsSet struct {
 	GoSet []interface{}
+}
+
+func (set *OvsSet) GetUUIDs() []string {
+	uuids := []string{}
+	if len(set.GoSet) > 0 {
+		if array, ok := set.GoSet[1].([]interface{}); ok {
+			for _, iface := range array {
+				if uuid := ParseOVSDBUUID(iface); uuid != "" {
+					uuids = append(uuids, uuid)
+				}
+
+			}
+		} else {
+			if uuid := ParseOVSDBUUID(set.GoSet); uuid != "" {
+				uuids = append(uuids, uuid)
+			}
+		}
+
+	}
+
+	return uuids
+
 }
 
 // <set> notation requires special handling

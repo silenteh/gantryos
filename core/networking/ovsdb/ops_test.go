@@ -3,7 +3,7 @@
 package ovsdb
 
 import (
-	"fmt"
+	//"fmt"
 	"testing"
 	"time"
 )
@@ -26,22 +26,35 @@ func TestGetBridgeUUID(t *testing.T) {
 		t.Error(err)
 	}
 
-	if uuid, err := getBridgeUUID(testBridge, client); err != nil {
+	bridgeUUID, err := getBridgeUUID(testBridge, client)
+	if err != nil {
 		t.Error(err)
 	} else {
-		fmt.Println(uuid)
+		addPort("add_port", bridgeUUID, 5, client)
 	}
 
-	if uuid, err := getPortUUID(testBridge, client); err != nil {
+	if _, err := getPortUUID(testBridge, client); err != nil {
 		t.Error(err)
-	} else {
-		fmt.Println(uuid)
 	}
 
-	if uuid, err := getInterfaceUUID(testBridge, client); err != nil {
+	if _, err := getInterfaceUUID(testBridge, client); err != nil {
 		t.Error(err)
-	} else {
-		fmt.Println(uuid)
+	}
+
+	ports, err := getAllBridgePorts(bridgeUUID, client)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(ports) == 0 {
+		t.Error("There must be at least 2 ports !")
+	}
+
+	for _, portUUID := range ports {
+		ifaces, err := getAllPortInterfaces(portUUID, client)
+		if len(ifaces) == 0 || err != nil {
+			t.Error("Could not retrieve the interfaces from the port")
+		}
 	}
 
 	//time.Sleep(5 * time.Second)
@@ -50,5 +63,5 @@ func TestGetBridgeUUID(t *testing.T) {
 		t.Error(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 }
