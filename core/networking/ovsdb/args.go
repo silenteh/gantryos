@@ -6,7 +6,7 @@ func NewGetSchemaArgs(schema string) []interface{} {
 }
 
 // NewTransactArgs creates a new set of arguments for a transact RPC
-func NewTransactArgs(database string, operations ...Operation) []interface{} {
+func NewTransactArgs(database string, addCommit bool, operations ...Operation) TransactOperations {
 	var dbSlice = make([]interface{}, 1)
 	dbSlice[0] = database
 
@@ -15,8 +15,15 @@ func NewTransactArgs(database string, operations ...Operation) []interface{} {
 		opsSlice[i] = d
 	}
 
+	if addCommit {
+		opsSlice = append(opsSlice, newCommitOp())
+	}
+
 	ops := append(dbSlice, opsSlice...)
-	return ops
+
+	var transactOps TransactOperations
+	transactOps = ops
+	return transactOps
 }
 
 // NewCancelArgs creates a new set of arguments for a cancel RPC

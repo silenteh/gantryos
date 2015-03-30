@@ -2,10 +2,12 @@ package ovsdb
 
 import "encoding/json"
 
+type TransactOperations []interface{}
+
 // Operation represents an operation according to RFC7047 section 5.2
 type Operation struct {
 	Op        string                   `json:"op"`
-	Table     string                   `json:"table"`
+	Table     string                   `json:"table,omitempty"`
 	Row       map[string]interface{}   `json:"row,omitempty"`
 	Rows      []map[string]interface{} `json:"rows,omitempty"`
 	Columns   []string                 `json:"columns,omitempty"`
@@ -15,6 +17,11 @@ type Operation struct {
 	Until     string                   `json:"until,omitempty"`
 	UUIDName  string                   `json:"uuid-name,omitempty"`
 	Durable   bool                     `json:"durable,omitempty"`
+}
+
+type CommitOperation struct {
+	Op      string `json:"op"`
+	Durable bool   `json:"durable"`
 }
 
 // MonitorRequest represents a monitor request according to RFC7047

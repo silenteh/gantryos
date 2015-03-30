@@ -1,18 +1,18 @@
 package ovsdb
 
 import (
-//"fmt"
+	"fmt"
 )
 
-func newCommitOp() Operation {
-	commit := Operation{
-		Op:      "commit",
+func newCommitOp() CommitOperation {
+	commit := CommitOperation{
 		Durable: false,
+		Op:      "commit",
 	}
 	return commit
 }
 
-func addBridgeOps(bridgeName, rootUUID string, stpEnabled bool) []Operation {
+func addBridgeOps(bridgeName, rootUUID string, stpEnabled bool) TransactOperations {
 
 	// interface first, because we need the UUID
 	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(bridgeName)
@@ -37,7 +37,132 @@ func addBridgeOps(bridgeName, rootUUID string, stpEnabled bool) []Operation {
 		Where:     []interface{}{condition},
 	}
 
-	return []Operation{insertInterfaceOp, insertPortOp, insertBridgeOp, mutateOp, newCommitOp()}
+	operations := []Operation{insertInterfaceOp, insertPortOp, insertBridgeOp, mutateOp}
+
+	return NewTransactArgs("Open_vSwitch", true, operations...)
+
+}
+
+func addBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchManager) (string, error) {
+
+	namedUuid := bridgeName + "_gantryos"
+
+	// bridge definition and properties
+	bridge := make(map[string]interface{})
+	bridge["name"] = bridgeName
+	bridge["stp_enable"] = stpEnabled
+
+	// assign the port to the bridge
+	//bridge["ports"] = newNamedUUID(portUUID)
+
+	// create the operation
+	insertOp := Operation{
+		Op:       "insert",
+		Table:    "Bridge",
+		Row:      bridge,
+		UUIDName: namedUuid,
+	}
+
+	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
+	mutateUuid := []UUID{UUID{namedUuid}}
+	mutateSet, _ := NewOvsSet(mutateUuid)
+	mutation := NewMutation("bridges", "insert", mutateSet)
+	condition := NewCondition("_uuid", "==", UUID{rootUUID})
+
+	// simple mutate operation
+	mutateOp := Operation{
+		Op:        "mutate",
+		Table:     "Open_vSwitch",
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+
+	operations := []Operation{insertOp, mutateOp}
+
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+
+	results, err := manager.Transact("Open_vSwitch", "ADD_BRIDGE", ops)
+	if err != nil {
+		return "", err
+	}
+
+	res := ParseOVSDBOpsResult(results[0])
+
+	return res.UUID.GoUuid, err
+
+}
+
+func addPort(portName, bridgeUUID string, vlan int, manager *vswitchManager) (string, error) {
+
+	// interface first, because we need the UUID
+	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(portName)
+
+	// then the port using the interface UUID
+	insertPortOp, insertPortUUID := newPortOp(portName, insertInterfaceUUID)
+
+	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
+	mutateUuid := []UUID{UUID{insertPortUUID}}
+	mutateSet, _ := NewOvsSet(mutateUuid)
+	mutation := NewMutation("ports", "insert", mutateSet)
+	condition := NewCondition("_uuid", "==", UUID{bridgeUUID})
+
+	// simple mutate operation
+	mutateOp := Operation{
+		Op:        "mutate",
+		Table:     "Bridge",
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+
+	operations := []Operation{insertInterfaceOp, insertPortOp, mutateOp}
+
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+
+	results, err := manager.Transact("Open_vSwitch", "ADD_FIRST_PORT", ops)
+	if err != nil {
+		return "", err
+	}
+
+	//fmt.Println(results)
+
+	res := ParseOVSDBOpsResult(results[1])
+
+	return res.UUID.GoUuid, err
+
+}
+
+func addInterface(interfaceName, portUUID string, manager *vswitchManager) (string, error) {
+
+	// interface first, because we need the UUID
+	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(interfaceName)
+
+	mutateUuid := []UUID{UUID{insertInterfaceUUID}}
+	mutateSet, _ := NewOvsSet(mutateUuid)
+	mutation := NewMutation("interfaces", "insert", mutateSet)
+	condition := NewCondition("_uuid", "==", UUID{portUUID})
+
+	// simple mutate operation
+	mutateOp := Operation{
+		Op:        "mutate",
+		Table:     "Port",
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+
+	operations := []Operation{insertInterfaceOp, mutateOp}
+
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+
+	results, err := manager.Transact("Open_vSwitch", "ADD_INTERFACE", ops)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println(results)
+
+	res := ParseOVSDBOpsResult(results[0])
+
+	return res.UUID.GoUuid, err
 
 }
 
@@ -122,23 +247,13 @@ func deleteBridge(rootUUID, bridgeUUID string, manager *vswitchManager) error {
 		Where:     []interface{}{condition},
 	}
 
-	operations := []Operation{deleteBridgeOperation, mutateOp, newCommitOp()}
+	operations := []Operation{deleteBridgeOperation, mutateOp}
 
-	_, err := manager.Transact("Open_vSwitch", "DELETE_BRIDGE", operations...)
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+
+	_, err := manager.Transact("Open_vSwitch", "DELETE_BRIDGE", ops)
 	return err
 }
-
-// func newAutoAttachOp(bridgeName string) (Operation, string) {
-// 	namedUuid := bridgeName + "_autoattach"
-// 	emptyRow := make(map[string]interface{})
-// 	insertOp := Operation{
-// 		Op:       "insert",
-// 		Table:    "AutoAttach",
-// 		Row:      emptyRow,
-// 		UUIDName: namedUuid,
-// 	}
-// 	return insertOp, namedUuid
-// }
 
 func getBridgeUUID(bridgeName string, manager *vswitchManager) (string, error) {
 	condition := NewCondition("name", "==", bridgeName)
@@ -150,7 +265,9 @@ func getBridgeUUID(bridgeName string, manager *vswitchManager) (string, error) {
 	}
 	operations := []Operation{selectBridgeOp}
 
-	data, err := manager.Transact("Open_vSwitch", "GET_BRIDGE_UUID", operations...)
+	ops := NewTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_BRIDGE_UUID", ops)
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +291,35 @@ func getPortUUID(portName string, manager *vswitchManager) (string, error) {
 	}
 	operations := []Operation{selectPortOp}
 
-	data, err := manager.Transact("Open_vSwitch", "GET_PORT_UUID", operations...)
+	ops := NewTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_PORT_UUID", ops)
+	if err != nil {
+		return "", err
+	}
+
+	uuidPort := data[0].UUID.GoUuid
+	if len(data[0].Rows) > 0 {
+		uuidPort = ParseOVSDBUUID(data[0].Rows[0]["_uuid"])
+	}
+
+	return uuidPort, nil
+
+}
+
+func getAllPorts(portName string, manager *vswitchManager) (string, error) {
+	condition := NewCondition("name", "==", portName)
+
+	selectPortOp := Operation{
+		Op:    "select",
+		Table: "Port",
+		Where: []interface{}{condition},
+	}
+	operations := []Operation{selectPortOp}
+
+	ops := NewTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_PORT_UUID", ops)
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +343,9 @@ func getInterfaceUUID(interfaceName string, manager *vswitchManager) (string, er
 	}
 	operations := []Operation{selectInterfaceOp}
 
-	data, err := manager.Transact("Open_vSwitch", "GET_INTERFACE_UUID", operations...)
+	ops := NewTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_INTERFACE_UUID", ops)
 	if err != nil {
 		return "", err
 	}
@@ -218,8 +365,9 @@ func deletePort(portUUID string, manager *vswitchManager) error {
 		Table: "Port",
 		Where: []interface{}{NewCondition("_uuid", "==", UUID{portUUID})},
 	}
-	operations := []Operation{deletePortOperation, newCommitOp()}
-	_, err := manager.Transact("Open_vSwitch", "DELETE_PORT", operations...)
+	operations := []Operation{deletePortOperation}
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+	_, err := manager.Transact("Open_vSwitch", "DELETE_PORT", ops)
 	return err
 
 }
@@ -230,8 +378,9 @@ func deleteInterface(interfaceUUID string, manager *vswitchManager) error {
 		Table: "Interface",
 		Where: []interface{}{NewCondition("_uuid", "==", UUID{interfaceUUID})},
 	}
-	operations := []Operation{deleteInterfaceOperation, newCommitOp()}
-	_, err := manager.Transact("Open_vSwitch", "DELETE_PORT", operations...)
+	operations := []Operation{deleteInterfaceOperation}
+	ops := NewTransactArgs("Open_vSwitch", true, operations...)
+	_, err := manager.Transact("Open_vSwitch", "DELETE_PORT", ops)
 	return err
 
 }
@@ -259,4 +408,15 @@ func selectBridgeOp(bridgeName string) []Operation {
 		Where: []interface{}{condition},
 	}
 	return []Operation{selectBridgeOp, selectPortOp, selectInterfaceOp}
+}
+
+func bridgeExists(bridgeName string, manager *vswitchManager) (bool, string) {
+
+	id, err := getBridgeUUID(bridgeName, manager)
+	if err == nil && id != "" {
+		return true, id
+	}
+
+	return false, ""
+
 }

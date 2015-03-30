@@ -176,7 +176,7 @@ func (c *rpcjJsonClient) Call(method string, args interface{}, interested bool) 
 	}
 
 	// fmt.Println("=======================================================")
-	// fmt.Printf("REQUEST: %s\n\n", data)
+	fmt.Printf("REQUEST: %s\n\n", data)
 
 	// write data
 	_, err = c.conn.Write(data)
@@ -208,10 +208,19 @@ func (client *rpcjJsonClient) readLoop() {
 
 		var rr clientRR
 
-		//err = json.Unmarshal(tcpData, &rr)
+		// if data, err := ioutil.ReadAll(reader); err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// } else {
+		// 	err := json.Unmarshal(data, &rr)
+		// 	fmt.Println(err)
+		// }
+
+		// //err = json.Unmarshal(tcpData, &rr)
 		decoder := json.NewDecoder(reader)
 		if err := decoder.Decode(&rr); err != nil {
 			fmt.Println("Error decoding RequestResponse !", err)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
@@ -230,44 +239,48 @@ func (client *rpcjJsonClient) readLoop() {
 						fmt.Println("ECHO conversion error")
 					}
 				}
+				time.Sleep(100 * time.Millisecond)
 				continue
 			case rr.Method == "update":
-				//fmt.Println("UPDATE", data)
-				if params, ok := rr.Params.([]interface{}); ok {
+				// //fmt.Println("UPDATE", data)
+				// if params, ok := rr.Params.([]interface{}); ok {
 
-					if len(params) < 2 {
-						continue //errors.New("Invalid Update message")
-						//continue
-					}
-					// Ignore params[0] as we dont use the <json-value> currently for comparison
+				// 	if len(params) < 2 {
+				// 		continue //errors.New("Invalid Update message")
+				// 		//continue
+				// 	}
+				// 	// Ignore params[0] as we dont use the <json-value> currently for comparison
 
-					raw, ok := params[1].(map[string]interface{})
-					if !ok {
-						continue //errors.New("Invalid Update message - 2")
-					}
-					var rowUpdates map[string]map[string]RowUpdate
+				// 	raw, ok := params[1].(map[string]interface{})
+				// 	if !ok {
+				// 		continue //errors.New("Invalid Update message - 2")
+				// 	}
+				// 	var rowUpdates map[string]map[string]RowUpdate
 
-					b, err := json.Marshal(raw)
-					if err != nil {
-						continue //err
-					}
-					err = json.Unmarshal(b, &rowUpdates)
-					if err != nil {
-						continue //err
-					}
+				// 	b, err := json.Marshal(raw)
+				// 	if err != nil {
+				// 		continue //err
+				// 	}
+				// 	err = json.Unmarshal(b, &rowUpdates)
+				// 	if err != nil {
+				// 		continue //err
+				// 	}
 
-					// Update the local DB cache with the tableUpdates
-					tableUpdates := getTableUpdatesFromRawUnmarshal(rowUpdates)
-					for _, handler := range client.handlers {
-						handler.Update(params, tableUpdates)
-					}
+				// 	// Update the local DB cache with the tableUpdates
+				// 	tableUpdates := getTableUpdatesFromRawUnmarshal(rowUpdates)
+				// 	for _, handler := range client.handlers {
+				// 		handler.Update(params, tableUpdates)
+				// 	}
 
-				} else {
-					fmt.Println("Could not cast to TableUpdates")
-				}
+				// } else {
+				// 	fmt.Println("Could not cast to TableUpdates")
+				// }
+
+				time.Sleep(100 * time.Millisecond)
 
 				continue
 			case rr.Method == "steal":
+				time.Sleep(100 * time.Millisecond)
 				continue
 			case rr.Method == "lock":
 				for _, handler := range client.handlers {
@@ -275,13 +288,16 @@ func (client *rpcjJsonClient) readLoop() {
 						handler.Locked(params)
 					}
 				}
+				time.Sleep(100 * time.Millisecond)
 				continue
 			case rr.Method == "unlock":
+
 				for _, handler := range client.handlers {
 					if params, ok := rr.Params.([]interface{}); ok {
 						handler.Locked(params)
 					}
 				}
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 		} else {

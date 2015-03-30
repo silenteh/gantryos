@@ -1,31 +1,34 @@
 package ovsdb
 
 import (
-	"errors"
+//"errors"
+//"fmt"
 )
 
 // MODELS
 
 // local slave switch
 type vswitch struct {
-	Id   string // ovsdb root ID
-	Name string
-	VPCs []vpc
+	RootId  string // ovsdb root UUID
+	Id      string // bridge UUID
+	Name    string
+	VPCs    map[string]vpc
+	Manager *vswitchManager
 }
 
 // can contain multiple VPCs
 type vpc struct {
-	Name    string  // description name must be unique
-	Network string  // network range
-	VLan    int     // vlan ID
-	Ports   []vPort // all ports have that ID
+	Name    string           // description name must be unique
+	Network string           // network range
+	VLan    int              // vlan ID
+	Ports   map[string]vPort // all ports have that ID
 }
 
 // each VPC has multiple ports
 type vPort struct {
 	Id         string // uuid
 	Name       string
-	Interfaces []vInterface
+	Interfaces map[string]vInterface
 }
 
 // each port has an interface
@@ -34,7 +37,52 @@ type vInterface struct {
 	Name string
 }
 
-// func LoadVSwitch(bridgeName string, manager vswitchManager) (*vswitch, error) {
+func (vswitch *vswitch) AddVPC(name, network string, vlan int) {
+	vpc := vpc{
+		Name:    name,
+		Network: network,
+		VLan:    vlan,
+		Ports:   make(map[string]vPort),
+	}
+
+	vswitch.VPCs[name] = vpc
+}
+
+func (vpc vpc) AddPort(portName, bridgeUUID string, vlan int, manager *vswitchManager) error {
+	port := vPort{
+		Name:       portName,
+		Interfaces: make(map[string]vInterface),
+	}
+
+	id, err := addPort(portName, bridgeUUID, vlan, manager)
+	if err != nil {
+		return err
+	}
+
+	port.Id = id
+	vpc.Ports[portName] = port
+
+	return nil
+}
+
+func (port vPort) AddInterface(interfaceName string, manager *vswitchManager) error {
+
+	interfaceUUID, err := addInterface(interfaceName, port.Id, manager)
+	if err != nil {
+		return err
+	}
+
+	vint := vInterface{
+		Id:   interfaceUUID,
+		Name: interfaceName,
+	}
+
+	port.Interfaces[interfaceName] = vint
+
+	return nil
+}
+
+// func loadVSwitch(bridgeName string, manager vswitchManager) (*vswitch, error) {
 
 // 	condition := NewCondition("name", "==", bridgeName)
 
@@ -50,59 +98,29 @@ type vInterface struct {
 
 // }
 
-func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager vswitchManager) (*vswitch, error) {
+func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager *vswitchManager) (*vswitch, error) {
+
+	exists, id := bridgeExists(bridgeName, manager)
 
 	vswitch := vswitch{
-		Id:   rootUUID,
-		Name: bridgeName,
-		VPCs: []vpc{},
+		Manager: manager,
+		RootId:  rootUUID,
+		Name:    bridgeName,
+		VPCs:    make(map[string]vpc),
 	}
 
-	insertBridgeUUID := bridgeName + "_gantryos"
-
-	// bridge definition and properties
-	bridge := make(map[string]interface{})
-	bridge["name"] = bridgeName
-	bridge["stp_enable"] = stpEnabled
-
-	// assign the port to the bridge
-	//bridge["ports"] = newNamedUUID(portUUID)
-
-	// create the operation
-	insertBridgeOp := Operation{
-		Op:       "insert",
-		Table:    "Bridge",
-		Row:      bridge,
-		UUIDName: insertBridgeUUID,
+	if exists {
+		vswitch.Id = id
+		return &vswitch, nil
 	}
 
-	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
-	mutateUuid := []UUID{UUID{insertBridgeUUID}}
-	mutateSet, _ := NewOvsSet(mutateUuid)
-	mutation := NewMutation("bridges", "insert", mutateSet)
-	condition := NewCondition("_uuid", "==", UUID{rootUUID})
-
-	// simple mutate operation
-	mutateOp := Operation{
-		Op:        "mutate",
-		Table:     "Open_vSwitch",
-		Mutations: []interface{}{mutation},
-		Where:     []interface{}{condition},
-	}
-
-	operations := []Operation{insertBridgeOp, mutateOp, newCommitOp()}
-
-	results, err := manager.Transact("Open_vSwitch", "NEW_VSWITCH", operations...)
+	bridgeUUID, err := addBridge(bridgeName, rootUUID, stpEnabled, manager)
 
 	if err != nil {
-		return nil, err
+		return &vswitch, err
 	}
 
-	if len(results) == 0 {
-		return nil, errors.New("Error adding a new vswitch")
-	}
-
-	vswitch.Id = results[0].UUID.GoUuid
+	vswitch.Id = bridgeUUID
 
 	return &vswitch, nil
 

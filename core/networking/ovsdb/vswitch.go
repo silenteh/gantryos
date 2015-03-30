@@ -168,9 +168,9 @@ func (manager vswitchManager) AddBridge(bridgeName string) error {
 
 	// INSERT INTERFACE
 	fmt.Println("ROOT UUID", manager.GetRootUUID())
-	operations := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
+	ops := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
 
-	_, err := manager.Transact("Open_vSwitch", "ADD_BRIDGE", operations...)
+	_, err := manager.Transact("Open_vSwitch", "ADD_BRIDGE", ops)
 
 	return err
 }
@@ -337,7 +337,7 @@ func (n Notifier) Echo([]interface{}) {
 // 	n.manager.client.Close()
 // }
 
-func (manager *vswitchManager) Transact(database, description string, operation ...Operation) ([]OperationResult, error) {
+func (manager *vswitchManager) Transact(database, description string, operations TransactOperations) ([]OperationResult, error) {
 	var err error
 	var response []OperationResult
 	// db, ok := manager.schema[database]
@@ -349,10 +349,10 @@ func (manager *vswitchManager) Transact(database, description string, operation 
 	// 	return nil, errors.New("Validation failed for the operation")
 	// }
 
-	args := NewTransactArgs(database, operation...)
+	//args := NewTransactArgs(database, operation...)
 
 	// // Increment the counter
-	transactCounter++
+	//transactCounter++
 	// // LOCK id
 	//id := strconv.Itoa(transactCounter)
 
@@ -372,7 +372,7 @@ func (manager *vswitchManager) Transact(database, description string, operation 
 	//manager.lock(id)
 	//defer manager.unlock(id)
 
-	dataChan, err := manager.client.Call("transact", args, true)
+	dataChan, err := manager.client.Call("transact", operations, true)
 	if err != nil {
 		fmt.Println("TRANSACT:", err)
 		return response, err
@@ -382,7 +382,7 @@ func (manager *vswitchManager) Transact(database, description string, operation 
 	select {
 	case data := <-dataChan:
 		err = json.Unmarshal(data, &response)
-	case <-time.After(10 * time.Second):
+	case <-time.After(30 * time.Second):
 		err = errors.New(description + ": Transact request timed out")
 	}
 

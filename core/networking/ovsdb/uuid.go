@@ -23,6 +23,16 @@ func ParseOVSDBUUID(data interface{}) string {
 
 }
 
+func ParseOVSDBOpsResult(data interface{}) OperationResult {
+
+	if res, ok := data.(OperationResult); ok {
+		return res
+	}
+
+	return OperationResult{}
+
+}
+
 // <set> notation requires special marshaling
 func (u UUID) MarshalJSON() ([]byte, error) {
 	var uuidSlice []string
