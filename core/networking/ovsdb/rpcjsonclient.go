@@ -2,14 +2,8 @@ package ovsdb
 
 import (
 	"bufio"
-	//"bytes"
 	"encoding/json"
-	//"errors"
-	"fmt"
-	//log "github.com/golang/glog"
-	//"github.com/cenkalti/rpc2"
-	//"io"
-	//"io/ioutil"
+	log "github.com/Sirupsen/logrus"
 	"math/rand"
 	"net"
 	"strconv"
@@ -27,6 +21,9 @@ type message struct {
 
 type rpcjJsonClient struct {
 	mutex        sync.Mutex // protects pending, seq, request
+	closeLock    sync.Mutex
+	writeLock    sync.Mutex
+	readLock     sync.Mutex
 	pending      map[string]chan json.RawMessage
 	Address      string
 	Port         string
@@ -50,13 +47,6 @@ type clientRequest struct {
 	Id string `json:"id"`
 }
 
-// clientResponse represents a JSON-RPC response returned to a client.
-type clientResponse struct {
-	Result json.RawMessage `json:"result"`
-	Error  interface{}     `json:"error",omitempty`
-	Id     int64           `json:"id"`
-}
-
 type clientRR struct {
 	Id string `json:"id"`
 	// A String containing the name of the method to be invoked.
@@ -78,7 +68,7 @@ func (client *rpcjJsonClient) AddNotificationHandler(notifier NotificationHandle
 }
 
 // EncodeClientRequest encodes parameters for a JSON-RPC client request.
-func (client *rpcjJsonClient) encodeClientRequest(method string, args interface{}, responseChannel chan json.RawMessage) ([]byte, error) {
+func (client *rpcjJsonClient) encodeClientRequest(method string, args interface{}, respInterested bool) ([]byte, chan json.RawMessage, error) {
 	id := strconv.Itoa(int(rand.Int31()))
 	request := &clientRequest{
 		Method: method,
@@ -86,43 +76,38 @@ func (client *rpcjJsonClient) encodeClientRequest(method string, args interface{
 		Id:     id,
 	}
 
-	if responseChannel != nil {
-		//fmt.Println("Adding channel to request ID:", id)
-		//client.mutex.Lock()
-		client.pending[id] = responseChannel
-		//client.mutex.Unlock()
+	var channel chan json.RawMessage
+
+	if respInterested {
+		channel = make(chan json.RawMessage, 1)
+		//fmt.Printf("## %s encodeClientRequest Mutex Locked\n", id)
+		client.mutex.Lock()
+		client.pending[id] = channel
+		client.mutex.Unlock()
+		//fmt.Printf("## %s encodeClientRequest Mutex UnLocked\n", id)
 	}
 
-	return json.Marshal(request)
+	data, err := json.Marshal(request)
+
+	return data, channel, err
 }
 
 // DecodeClientResponse decodes the response body of a client request into
 // the interface reply.
 func (client *rpcjJsonClient) decodeClientResponse(response clientRR) {
-
-	//fmt.Println("Response ID:", response.Id)
-
-	//client.mutex.Lock()
+	//fmt.Printf("RESULT: %s *** %s\n\n", response.Id, response.Result)
+	client.mutex.Lock()
+	//fmt.Printf("## %s decodeClientResponse Mutex Locked\n", response.Id)
 	responseChannel, ok := client.pending[response.Id]
-	//client.mutex.Unlock()
-
 	// // means there was a request associated to the response
-	if !ok {
-		//fmt.Println("NO REQUEST ID ASSOCIATED WITH RESPONSE !!")
-		//fmt.Println("Not interest in response")
-		return
-	}
-
-	// Close the channel once we are done here
-	defer close(responseChannel)
-
-	//fmt.Printf("%s\n", response.Result)
-
-	if response.Result != nil {
+	if ok {
 		responseChannel <- response.Result
+		close(responseChannel)
+		delete(client.pending, response.Id)
 	}
+	client.mutex.Unlock()
+	//fmt.Printf("## %s decodeClientResponse Mutex Unlocked\n", response.Id)
 
-	delete(client.pending, response.Id)
 }
 
 //===========================================
@@ -164,65 +149,70 @@ func (c *rpcjJsonClient) Connect() error {
 
 func (c *rpcjJsonClient) Call(method string, args interface{}, interested bool) (chan json.RawMessage, error) {
 
-	var responseChannel chan json.RawMessage
-	if interested {
-		responseChannel = make(chan json.RawMessage)
-	}
-
-	data, err := c.encodeClientRequest(method, args, responseChannel)
+	data, responseChannel, err := c.encodeClientRequest(method, args, interested)
 
 	if err != nil {
+		log.Errorln("Error sending request to vswitch", err)
 		return responseChannel, err
 	}
 
 	// fmt.Println("=======================================================")
-	fmt.Printf("REQUEST: %s\n\n", data)
+	//fmt.Printf("REQUEST: %s\n\n", data)
 
 	// write data
+	c.writeLock.Lock()
+	//fmt.Println("## Call Write Locked")
 	_, err = c.conn.Write(data)
+	if err != nil {
+		//fmt.Println("WRITE ERROR !:", err)
+		log.Errorln("Error writing to socket", err)
+	}
+	c.writeLock.Unlock()
+	//fmt.Println("## Call Write UnLocked")
 	return responseChannel, err
 
 }
 
 func (c *rpcjJsonClient) Close() error {
+	c.closeLock.Lock()
+	defer c.closeLock.Unlock()
 	c.disconnected = true
 	return c.conn.Close()
 }
 
 func (client *rpcjJsonClient) readLoop() {
 
-	//max := 0
-	// create a copy
 	reader := bufio.NewReader(client.conn)
-	//var buffer bytes.Buffer
+	decoder := json.NewDecoder(reader)
 
 	for {
 
-		//max++
-		//fmt.Println(max)
+		// lock the access to the variable
+		client.closeLock.Lock()
+		// read the value
+		disconnected := client.disconnected
+		// unlock the access
+		client.closeLock.Unlock()
 
-		if client.disconnected {
-			fmt.Println("Client closed the connection")
-			return //errors.New("Client is disconnected")
+		if disconnected {
+			log.Infoln("Client disconnected from vswitch")
+			return
 		}
 
 		var rr clientRR
 
-		// if data, err := ioutil.ReadAll(reader); err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// } else {
-		// 	err := json.Unmarshal(data, &rr)
-		// 	fmt.Println(err)
-		// }
-
-		// //err = json.Unmarshal(tcpData, &rr)
-		decoder := json.NewDecoder(reader)
+		// this is a CRITICAL SECTION !!!
+		client.closeLock.Lock()
+		client.writeLock.Lock()
 		if err := decoder.Decode(&rr); err != nil {
-			fmt.Println("Error decoding RequestResponse !", err)
+			client.closeLock.Unlock()
+			client.writeLock.Lock()
+			log.Errorln("Error decoding RequestResponse", err)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
+		client.writeLock.Unlock()
+		client.closeLock.Unlock()
 
 		//fmt.Printf("RESULT: %s\n\n", rr.Result)
 
@@ -235,13 +225,12 @@ func (client *rpcjJsonClient) readLoop() {
 						var resp []interface{}
 						handler.Echo(resp)
 						client.Call("echo", []string{"ping"}, false)
-					} else {
-						fmt.Println("ECHO conversion error")
 					}
 				}
 				time.Sleep(100 * time.Millisecond)
 				continue
 			case rr.Method == "update":
+
 				// //fmt.Println("UPDATE", data)
 				// if params, ok := rr.Params.([]interface{}); ok {
 
@@ -301,8 +290,12 @@ func (client *rpcjJsonClient) readLoop() {
 				continue
 			}
 		} else {
+			client.closeLock.Lock()
 			client.decodeClientResponse(rr)
+			client.closeLock.Unlock()
 		}
+
+		time.Sleep(100 * time.Millisecond)
 
 	}
 

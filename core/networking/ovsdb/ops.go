@@ -1,7 +1,7 @@
 package ovsdb
 
 import (
-	"fmt"
+//"fmt"
 )
 
 func newCommitOp() CommitOperation {
@@ -158,7 +158,7 @@ func addInterface(interfaceName, portUUID string, manager *vswitchManager) (stri
 		return "", err
 	}
 
-	fmt.Println(results)
+	//fmt.Println(results)
 
 	res := ParseOVSDBOpsResult(results[0])
 

@@ -130,8 +130,10 @@ func (manager vswitchManager) ListDBs() ([]string, error) {
 	select {
 	case data := <-dataChan:
 		err = json.Unmarshal(data, &response)
+		break
 	case <-time.After(5 * time.Second):
 		err = errors.New("List DBs request timed out")
+		break
 	}
 
 	return response, err
@@ -153,6 +155,7 @@ func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
 		if err == nil {
 			manager.schema[db] = dbSchema
 		}
+		break
 	case <-time.After(5 * time.Second):
 		err = errors.New("Get schema request timed out")
 	}
@@ -329,7 +332,7 @@ func (n Notifier) Stolen([]interface{}) {
 }
 func (n Notifier) Echo([]interface{}) {
 	//fmt.Println("Got echo from monitor")
-	log.Infoln("Echo")
+	log.Infoln("Handler got Echo")
 
 }
 
@@ -340,39 +343,9 @@ func (n Notifier) Echo([]interface{}) {
 func (manager *vswitchManager) Transact(database, description string, operations TransactOperations) ([]OperationResult, error) {
 	var err error
 	var response []OperationResult
-	// db, ok := manager.schema[database]
-	// if !ok {
-	// 	return nil, errors.New("invalid Database Schema")
-	// }
-
-	// if ok := db.validateOperations(operation...); !ok {
-	// 	return nil, errors.New("Validation failed for the operation")
-	// }
-
-	//args := NewTransactArgs(database, operation...)
-
-	// // Increment the counter
-	//transactCounter++
-	// // LOCK id
-	//id := strconv.Itoa(transactCounter)
-
-	// // LOCK response
-	//var locked map[string]bool
-
-	// // Lock call
-	//manager.client.Call("lock", id, &locked)
-
-	// fmt.Println("LOCKED: =====> ", locked)
-	// for !locked["locked"] {
-	// 	fmt.Println("Loop", "LOCKING.......")
-	// 	manager.client.Call("lock", id, &locked)
-	// 	time.Sleep(500 * time.Millisecond)
-	// }
-
-	//manager.lock(id)
-	//defer manager.unlock(id)
 
 	dataChan, err := manager.client.Call("transact", operations, true)
+
 	if err != nil {
 		fmt.Println("TRANSACT:", err)
 		return response, err
@@ -382,42 +355,12 @@ func (manager *vswitchManager) Transact(database, description string, operations
 	select {
 	case data := <-dataChan:
 		err = json.Unmarshal(data, &response)
-	case <-time.After(30 * time.Second):
+		break
+	case <-time.After(5 * time.Second):
 		err = errors.New(description + ": Transact request timed out")
 	}
 
 	return response, err
-
-	// UNLOCK Response
-	//var unlocked map[string]bool
-
-	// UNLOCK ID
-	//id = NewLockArgs("unlock_" + strconv.Itoa(transactCounter))
-	//manager.client.Call("unlock", id, &unlocked)
-
-	// switch reply.(type) {
-	// case string:
-	// 	fmt.Println("STRING:", reply.(string))
-	// 	return nil, errors.New("Got back a string")
-	// case []interface{}:
-	// 	fmt.Println("INTERFACE:", reply)
-	// 	var result []OperationResult
-	// 	data, _ := json.Marshal(reply)
-	// 	json.Unmarshal(data, &result)
-	// 	return result, nil
-	// default:
-	// 	fmt.Println(reply)
-	// }
-
-	// if err != nil {
-	// 	//manager.client.Call("unlock", id, &unlocked)
-	// 	//fmt.Println("UNLOCKED: =====> ", unlocked)
-	// 	fmt.Println("FAILED", err)
-	// 	return nil, err
-	// }
-	//manager.client.Call("unlock", id, &unlocked)
-	//fmt.Println("UNLOCKED: =====> ", unlocked)
-	//return nil, nil
 }
 
 func (manager *vswitchManager) lock(trasnactionId string) {

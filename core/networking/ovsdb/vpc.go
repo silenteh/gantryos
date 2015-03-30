@@ -9,11 +9,10 @@ import (
 
 // local slave switch
 type vswitch struct {
-	RootId  string // ovsdb root UUID
-	Id      string // bridge UUID
-	Name    string
-	VPCs    map[string]vpc
-	Manager *vswitchManager
+	RootId string // ovsdb root UUID
+	Id     string // bridge UUID
+	Name   string
+	VPCs   map[string]vpc
 }
 
 // can contain multiple VPCs
@@ -103,10 +102,9 @@ func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager *vswitchMa
 	exists, id := bridgeExists(bridgeName, manager)
 
 	vswitch := vswitch{
-		Manager: manager,
-		RootId:  rootUUID,
-		Name:    bridgeName,
-		VPCs:    make(map[string]vpc),
+		RootId: rootUUID,
+		Name:   bridgeName,
+		VPCs:   make(map[string]vpc),
 	}
 
 	if exists {
