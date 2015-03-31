@@ -9,14 +9,16 @@ import (
 	"github.com/silenteh/gantryos/utils"
 	"io"
 	"net"
+	"sync"
 )
 
 // tracks down the connections that the slaves made to the server so we can execute a specific task on a specific slave
 var slaveConnections = make(map[string]*net.TCPConn)
-
+var counterMutex sync.Mutex
 var totalSlaveConnections = 1
 
 type gantryTCPServer struct {
+	stopMutex     sync.Mutex
 	LocalAddr     string
 	LocalPort     string
 	readerChannel chan *proto.Envelope // from this channel we can read all the data coming from the clients
@@ -63,7 +65,9 @@ func (s *gantryTCPServer) StartTCP() {
 		ln, err := net.ListenTCP("tcp", addr)
 
 		// assign the conn to stop the server
+		s.stopMutex.Lock()
 		s.conn = ln
+		s.stopMutex.Unlock()
 
 		if err != nil {
 			log.Fatalln(err)
@@ -75,12 +79,14 @@ func (s *gantryTCPServer) StartTCP() {
 			if conn, err := ln.AcceptTCP(); err == nil {
 				// we accept a maximum of 640000 concurrent connections
 				// each slave creates 1 connection, therefore it should be enough for handling up to 64k slaves !
+				counterMutex.Lock()
 				if totalSlaveConnections < 640000 {
 					log.Infoln("Amount of slave connections:", totalSlaveConnections)
 					go handleTCPConnection(conn, s.readerChannel)
 				} else {
 					log.Errorln("Too many connections from slaves. Stopped accepting new connections.")
 				}
+				counterMutex.Unlock()
 			}
 		}
 
@@ -89,6 +95,8 @@ func (s *gantryTCPServer) StartTCP() {
 }
 
 func (s *gantryTCPServer) Stop() error {
+	s.stopMutex.Lock()
+	defer s.stopMutex.Unlock()
 	return s.conn.Close()
 }
 
@@ -100,7 +108,9 @@ func (s *gantryUDPServer) Stop() error {
 func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 
 	// new slave connection was successfully created
+	counterMutex.Lock()
 	totalSlaveConnections++
+	counterMutex.Unlock()
 
 	var slaveId string
 
@@ -158,7 +168,9 @@ func handleTCPConnection(conn *net.TCPConn, dataChannel chan *proto.Envelope) {
 	}
 
 	// at this point the connection will be closed therefore decrease the counter
+	counterMutex.Lock()
 	totalSlaveConnections--
+	counterMutex.Unlock()
 
 }
 

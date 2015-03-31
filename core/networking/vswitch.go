@@ -2,10 +2,11 @@ package networking
 
 import (
 	"errors"
+	"github.com/silenteh/gantryos/networking/ovsdb"
 	"github.com/silenteh/gantryos/utils"
 )
 
-func AddBridge(bridgeName string) error {
+func NewVswitch(bridgeName string) error {
 
 	if result := utils.ExecCommand(false, "ovs-vsctl", "add-br", bridgeName); result != "" {
 		return errors.New(result)
