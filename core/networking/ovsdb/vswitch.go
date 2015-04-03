@@ -163,19 +163,9 @@ func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
 	return &dbSchema, err
 }
 
-func (manager vswitchManager) AddBridge(bridgeName string) error {
+func (manager *vswitchManager) AddBridge(bridgeName string, stpEnabled bool) (string, error) {
 
-	// SELECT EXAMPLE
-	// condition := NewCondition("_uuid", "==", UUID{manager.GetRootUUID()})
-	// insertBridge := selectBaseOp(condition)
-
-	// INSERT INTERFACE
-	fmt.Println("ROOT UUID", manager.GetRootUUID())
-	ops := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
-
-	_, err := manager.Transact("Open_vSwitch", "ADD_BRIDGE", ops)
-
-	return err
+	return addFullBridge(bridgeName, manager.GetRootUUID(), stpEnabled, manager)
 }
 
 func (manager *vswitchManager) DeleteBridge(bridgeName string) error {
@@ -183,26 +173,6 @@ func (manager *vswitchManager) DeleteBridge(bridgeName string) error {
 	// get the uuid of the br0
 	uuidBridge, err := getBridgeUUID(bridgeName, manager)
 	if err != nil {
-		return err
-	}
-
-	// PORT
-	uuidPort, err := getPortUUID(bridgeName, manager)
-	if err != nil {
-		return err
-	}
-
-	// INTERFACE
-	uuidInterface, err := getPortUUID(bridgeName, manager)
-	if err != nil {
-		return err
-	}
-
-	if err := deleteInterface(uuidInterface, manager); err != nil {
-		return err
-	}
-
-	if err := deletePort(uuidPort, manager); err != nil {
 		return err
 	}
 

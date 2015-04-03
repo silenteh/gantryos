@@ -12,27 +12,6 @@ type UUID struct {
 	GoUuid string `json:"uuid"`
 }
 
-func ParseOVSDBUUID(data interface{}) string {
-
-	if array, ok := data.([]interface{}); ok {
-		uuid := array[1].(string)
-		return uuid //string(array[1])
-	}
-
-	return ""
-
-}
-
-func ParseOVSDBOpsResult(data interface{}) OperationResult {
-
-	if res, ok := data.(OperationResult); ok {
-		return res
-	}
-
-	return OperationResult{}
-
-}
-
 // <set> notation requires special marshaling
 func (u UUID) MarshalJSON() ([]byte, error) {
 	var uuidSlice []string

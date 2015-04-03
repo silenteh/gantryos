@@ -2,146 +2,259 @@ package ovsdb
 
 import (
 	"encoding/json"
+	//"errors"
+	log "github.com/Sirupsen/logrus"
+	//"math/rand"
 	"net"
+	"strconv"
+
+	//"github.com/silenteh/gantryos/utils"
 )
 
 // MODELS
-
-// local slave switch
-type Vswitch struct {
-	RootId  string // ovsdb root UUID
-	Id      string // bridge UUID
-	Name    string
-	VPCs    map[string]vpc
-	Address address
-}
+var defaultNetwork string = "192.168.100.0/24"
 
 type address struct {
 	DHCP    bool          // are the info set via DHCP ?
-	address net.IPAddr    // ip address and netmask
-	gateway net.IPAddr    // gateway
-	dns     []net.IPAddr  // dns config
-	iface   net.Interface // this is the interface we attach the vswitch to
+	Address net.IPAddr    // ip address and netmask
+	Gateway net.IPAddr    // gateway
+	Dns     []net.IPAddr  // dns config
+	Iface   net.Interface // this is the interface we attach the vswitch to
+}
+
+// local slave switch
+type Vswitch struct {
+	RootId     string // ovsdb root UUID
+	Id         string // bridge UUID
+	Name       string
+	STPEnabled bool
+	VPCs       map[string]vpc // VPC vlan
+	manager    *vswitchManager
 }
 
 // can contain multiple VPCs
 type vpc struct {
-	Name    string           // description name must be unique
-	Network string           // network range
-	VLan    int              // vlan ID
-	Ports   map[string]vPort // all ports have that ID
+	Name  string           // description name must be unique
+	VLan  int              // vlan ID
+	Ports map[string]vPort // the key here is the port name
+
+	// // network part
+	// Network *net.IPNet        // network of the VPC
+	// UsedIPs map[string]string // map of IP -> interface name
+	// Gateway net.IPAddr        // gateway of this VPC
+	// Dns     []net.IPAddr      // dns config
+
+}
+
+func newVPC(name string, vlan int) vpc {
+	vpc := vpc{
+		Name:  name,
+		VLan:  vlan,
+		Ports: make(map[string]vPort),
+		//UsedIPs: make(map[string]string),
+	}
+
+	return vpc
 }
 
 // each VPC has multiple ports
 type vPort struct {
 	Id         string // uuid
 	Name       string
-	Interfaces map[string]vInterface
+	Interfaces map[string]vInterface // Name of the interface
+	Address    net.IPAddr
+}
+
+func newVPort() vPort {
+	port := vPort{
+		Interfaces: make(map[string]vInterface),
+	}
+	return port
 }
 
 // each port has an interface
 type vInterface struct {
-	Id      string // uuid
-	Name    string
-	Address address
+	Id             string // uuid
+	Name           string
+	ContainerId    string
+	ContainerIface string
 }
 
-func (vswitch *Vswitch) toJson() ([]byte, error) {
-	return json.Marshal(vswitch)
+func (vswitch *Vswitch) toJson() string {
+	data, err := json.Marshal(vswitch)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
-func (vswitch *Vswitch) save() error {
+// called only if the default switch is not present
+func (vswitch *Vswitch) initDefaultVswitch(name string) error {
+	vlan := 0
+
+	// add the bridge
+	bridgeUUID, err := addBridge(name, vswitch.RootId, vswitch.STPEnabled, vswitch.manager)
+	if err != nil {
+		return err
+	}
+	vswitch.Id = bridgeUUID
+
+	// ad a vpc
+	vpc := vswitch.AddVPC(name, defaultNetwork, vlan)
+	if _, err := vpc.AddPort(name, bridgeUUID, name, "", vlan, vswitch.manager); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func load() error {
-	return nil
-}
+func (vswitch *Vswitch) AddVPC(name, cidr string, vlan int) *vpc {
 
-func (vswitch *Vswitch) AddVPC(name, network string, vlan int) {
+	// _, network, err := net.ParseCIDR(cidr)
+	// if err != nil {
+	// 	_, network, _ = net.ParseCIDR(defaultNetwork)
+	// }
+
 	vpc := vpc{
-		Name:    name,
-		Network: network,
-		VLan:    vlan,
-		Ports:   make(map[string]vPort),
+		//Network: network,
+		Name:  name,
+		VLan:  vlan,
+		Ports: make(map[string]vPort),
 	}
 
-	vswitch.VPCs[name] = vpc
+	vswitch.VPCs[strconv.Itoa(vlan)] = vpc
+	return &vpc
+
 }
 
-func (vpc vpc) AddPort(portName, bridgeUUID string, vlan int, manager *vswitchManager) error {
-	port := vPort{
-		Name:       portName,
-		Interfaces: make(map[string]vInterface),
+func (vpc *vpc) DeleteVPC(vswitch *Vswitch, manager *vswitchManager) error {
+
+	// loop through ports
+	for pk, p := range vpc.Ports {
+		// loop thorugh interfaces
+		for ik, i := range p.Interfaces {
+			// if err := deleteInterface(p.Id, i.Id, manager); err != nil {
+			// 	return err
+			// }
+			log.Info("Deleting interface: ", i.Name)
+			delete(p.Interfaces, ik)
+		}
+		// first try to delete physically the port if it succeeds then delete the in memory info
+		if err := deletePort(vswitch.Id, p.Id, manager); err != nil {
+			return err
+		}
+		log.Info("Deleting port: ", p.Name)
+		delete(vpc.Ports, pk)
+
 	}
 
-	id, err := addPort(portName, bridgeUUID, vlan, manager)
-	if err != nil {
+	delete(vswitch.VPCs, strconv.Itoa(vpc.VLan))
+
+	return nil
+
+}
+
+func (vswitch *Vswitch) DeleteVSwitch() error {
+
+	for _, vpc := range vswitch.VPCs {
+		if err := vpc.DeleteVPC(vswitch, vswitch.manager); err != nil {
+			return err
+		}
+	}
+
+	if err := deleteBridge(vswitch.RootId, vswitch.Id, vswitch.manager); err != nil {
 		return err
 	}
 
-	port.Id = id
-	vpc.Ports[portName] = port
+	log.Info("Deleting switch: ", vswitch.Name)
+	vswitch.Id = ""
+	vswitch.Name = ""
 
 	return nil
+
 }
 
-func (port vPort) AddInterface(interfaceName string, manager *vswitchManager) error {
+func (vpc *vpc) AddPort(portName, bridgeUUID, vpcName, containerId string, vlan int, manager *vswitchManager) (vPort, error) {
 
-	interfaceUUID, err := addInterface(interfaceName, port.Id, manager)
+	name := vpc.buildPortName(portName)
+	port := newVPort()
+
+	vInt := vInterface{
+		Name: name,
+	}
+
+	// add the containerID and the container iface
+	if containerId != "" {
+		vInt.ContainerId = containerId
+		vInt.ContainerIface = vpc.buildIfaceName(portName)
+	}
+
+	portUUID, intUUID, err := addPort(name, bridgeUUID, vpcName, vlan, vInt, manager)
 	if err != nil {
-		return err
+		return port, err
 	}
 
-	vint := vInterface{
-		Id:   interfaceUUID,
-		Name: interfaceName,
-	}
+	vInt.Id = intUUID
 
-	port.Interfaces[interfaceName] = vint
+	port.Id = portUUID
+	port.Name = name
+	port.Interfaces[name] = vInt
 
-	return nil
+	vpc.Ports[name] = port
+
+	return port, nil
 }
 
-// func loadVSwitch(bridgeName string, manager vswitchManager) (*vswitch, error) {
-
-// 	condition := NewCondition("name", "==", bridgeName)
-
-// 	selectBridgeOp := Operation{
-// 		Op:    "select",
-// 		Table: "Bridge",
-// 		Where: []interface{}{condition},
-// 	}
-
-// 	operations := []Operation{insertBridgeOp, mutateOp}
-
-// 	results, err := manager.Transact("Open_vSwitch", operations...)
+// func (port *vPort) Up(containerId string) error {
+// 	executor := utils.New()
+// 	cmd := executor.Command("ip netns add", containerId)
 
 // }
 
-func NewVSwitch(rootUUID, bridgeName string, stpEnabled bool, manager *vswitchManager) (*Vswitch, error) {
+// func (port *vPort) Down(containerId string) error {
+// 	executor := utils.New()
+// 	cmd := executor.Command("ip netns add", containerId)
 
-	exists, id := bridgeExists(bridgeName, manager)
+// }
+
+func (vpc *vpc) buildPortName(name string) string {
+	return name + "_" + strconv.Itoa(len(vpc.Ports)+1)
+}
+
+func (vpc *vpc) buildIfaceName(name string) string {
+	return "veth_" + vpc.buildPortName(name)
+}
+
+func InitVSwitch(manager *vswitchManager) (Vswitch, error) {
+
+	defaultSwitch := "gos0"
+
+	exists, bridgeUUID := bridgeExists(defaultSwitch, manager)
+	if exists {
+		return loadVSwitch(bridgeUUID, manager)
+	}
+
+	return newVSwitch(defaultSwitch, false, manager)
+
+}
+
+func loadVSwitch(bridgeUUID string, manager *vswitchManager) (Vswitch, error) {
+
+	return getAllBridgePorts(bridgeUUID, manager.GetRootUUID(), manager)
+
+}
+
+func newVSwitch(bridgeName string, stpEnabled bool, manager *vswitchManager) (Vswitch, error) {
 
 	vswitch := Vswitch{
-		RootId: rootUUID,
-		Name:   bridgeName,
-		VPCs:   make(map[string]vpc),
+		RootId:  manager.GetRootUUID(),
+		Name:    bridgeName,
+		VPCs:    make(map[string]vpc),
+		manager: manager,
 	}
 
-	if exists {
-		vswitch.Id = id
-		return &vswitch, nil
-	}
+	err := vswitch.initDefaultVswitch(bridgeName)
 
-	bridgeUUID, err := addBridge(bridgeName, rootUUID, stpEnabled, manager)
-
-	if err != nil {
-		return &vswitch, err
-	}
-
-	vswitch.Id = bridgeUUID
-
-	return &vswitch, nil
+	return vswitch, err
 
 }
