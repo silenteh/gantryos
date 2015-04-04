@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 import (
 	"encoding/json"
@@ -14,22 +14,22 @@ import (
 //  second element must be an array of zero or more <atom>s giving the
 //  values in the set.  All of the <atom>s must have the same type.
 
-type OvsSet struct {
+type ovsSet struct {
 	GoSet []interface{}
 }
 
-func (set *OvsSet) GetUUIDs() []string {
+func (set *ovsSet) GetUUIDs() []string {
 	uuids := []string{}
 	if len(set.GoSet) > 0 {
 		if array, ok := set.GoSet[1].([]interface{}); ok {
 			for _, iface := range array {
-				if uuid := ParseOVSDBUUID(iface); uuid != "" {
+				if uuid := parseOVSDBUUID(iface); uuid != "" {
 					uuids = append(uuids, uuid)
 				}
 
 			}
 		} else {
-			if uuid := ParseOVSDBUUID(set.GoSet); uuid != "" {
+			if uuid := parseOVSDBUUID(set.GoSet); uuid != "" {
 				uuids = append(uuids, uuid)
 			}
 		}
@@ -41,28 +41,28 @@ func (set *OvsSet) GetUUIDs() []string {
 }
 
 // <set> notation requires special handling
-func NewOvsSet(goSlice interface{}) (*OvsSet, error) {
+func newOvsSet(goSlice interface{}) (*ovsSet, error) {
 	v := reflect.ValueOf(goSlice)
 	if v.Kind() != reflect.Slice {
 		return nil, errors.New("OvsSet supports only Go Slice types")
 	}
 
-	var ovsSet []interface{}
+	var ovsset []interface{}
 	for i := 0; i < v.Len(); i++ {
-		ovsSet = append(ovsSet, v.Index(i).Interface())
+		ovsset = append(ovsset, v.Index(i).Interface())
 	}
-	return &OvsSet{ovsSet}, nil
+	return &ovsSet{ovsset}, nil
 }
 
 // <set> notation requires special marshaling
-func (o OvsSet) MarshalJSON() ([]byte, error) {
+func (o ovsSet) MarshalJSON() ([]byte, error) {
 	var oSet []interface{}
 	oSet = append(oSet, "set")
 	oSet = append(oSet, o.GoSet)
 	return json.Marshal(oSet)
 }
 
-func (o *OvsSet) UnmarshalJSON(b []byte) (err error) {
+func (o *ovsSet) UnmarshalJSON(b []byte) (err error) {
 	var oSet []interface{}
 	if err = json.Unmarshal(b, &oSet); err == nil && len(oSet) > 1 {
 		innerSet := oSet[1].([]interface{})

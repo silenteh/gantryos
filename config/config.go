@@ -16,7 +16,7 @@ type masterConfig struct {
 	IP             string
 	Port           int
 	SyslogServer   syslogServer
-	LogstashServer logstashServer
+	LogstashServer server
 }
 
 type slaveConfig struct {
@@ -25,18 +25,19 @@ type slaveConfig struct {
 	Checkpoint       bool
 	ContainersLogDir string
 	SyslogServer     syslogServer
-	LogstashServer   logstashServer
+	LogstashServer   server
+	VSwitchServer    server
+}
+
+type server struct {
+	Hostname string
+	Port     string
 }
 
 type syslogServer struct {
 	Hostname string
 	Port     string
 	Protocol string //tcp or udp
-}
-
-type logstashServer struct {
-	Hostname string
-	Port     string
 }
 
 type slaveInfo struct {

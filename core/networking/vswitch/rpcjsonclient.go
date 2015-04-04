@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 import (
 	"bufio"
@@ -28,13 +28,13 @@ type rpcjJsonClient struct {
 	Address      string
 	Port         string
 	conn         *net.TCPConn
-	handlers     []NotificationHandler
+	handlers     []notificationHandler
 	disconnected bool
 }
 
-type tableUpdate struct {
-	Table map[string]map[string]map[string]interface{}
-}
+// type tableUpdate struct {
+// 	Table map[string]map[string]map[string]interface{}
+// }
 
 // clientRequest represents a JSON-RPC request sent by a client.
 type clientRequest struct {
@@ -59,9 +59,9 @@ type clientRR struct {
 	Error interface{} `json:"error"`
 }
 
-func (client *rpcjJsonClient) AddNotificationHandler(notifier NotificationHandler) {
+func (client *rpcjJsonClient) addnotificationHandler(notifier notificationHandler) {
 	if client.handlers == nil {
-		client.handlers = []NotificationHandler{}
+		client.handlers = []notificationHandler{}
 	}
 	client.handlers = append(client.handlers, notifier)
 
@@ -114,7 +114,7 @@ func (client *rpcjJsonClient) decodeClientResponse(response clientRR) {
 
 //=============================================================
 
-func NewRPCJsonClient(address, port string) rpcjJsonClient {
+func newRPCJsonClient(address, port string) rpcjJsonClient {
 	return rpcjJsonClient{
 		Address: address,
 		Port:    port,

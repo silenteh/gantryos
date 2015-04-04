@@ -1,29 +1,29 @@
-package ovsdb
+package vswitch
 
 import (
 	"fmt"
 	"io"
 )
 
-type DatabaseSchema struct {
+type databaseSchema struct {
 	Name    string                 `json:"name"`
 	Version string                 `json:"version"`
-	Tables  map[string]TableSchema `json:"tables"`
+	Tables  map[string]tableSchema `json:"tables"`
 }
 
-type TableSchema struct {
-	Columns map[string]ColumnSchema `json:"columns"`
+type tableSchema struct {
+	Columns map[string]columnSchema `json:"columns"`
 	Indexes [][]string              `json:"indexes,omitempty"`
 }
 
-type ColumnSchema struct {
+type columnSchema struct {
 	Name      string      `json:"name"`
 	Type      interface{} `json:"type"`
 	Ephemeral bool        `json:"ephemeral,omitempty"`
 	Mutable   bool        `json:"mutable,omitempty"`
 }
 
-func (schema DatabaseSchema) Print(w io.Writer) {
+func (schema databaseSchema) Print(w io.Writer) {
 	fmt.Fprintf(w, "%s, (%s)\n", schema.Name, schema.Version)
 	for table, tableSchema := range schema.Tables {
 		fmt.Fprintf(w, "\t %s\n", table)
@@ -34,7 +34,7 @@ func (schema DatabaseSchema) Print(w io.Writer) {
 }
 
 // Basic validation for operations against Database Schema
-func (schema DatabaseSchema) validateOperations(operations ...Operation) bool {
+func (schema databaseSchema) validateOperations(operations ...operation) bool {
 	for _, op := range operations {
 		table, ok := schema.Tables[op.Table]
 		if ok {

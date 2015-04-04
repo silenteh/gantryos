@@ -1,12 +1,12 @@
-package ovsdb
+package vswitch
 
 import "encoding/json"
 
-type Row struct {
+type row struct {
 	Fields map[string]interface{}
 }
 
-func (r *Row) UnmarshalJSON(b []byte) (err error) {
+func (r *row) UnmarshalJSON(b []byte) (err error) {
 	r.Fields = make(map[string]interface{})
 	var raw map[string]interface{}
 	err = json.Unmarshal(b, &raw)

@@ -3,6 +3,7 @@ package services
 import (
 	log "github.com/golang/glog"
 	"github.com/silenteh/gantryos/config"
+	"github.com/silenteh/gantryos/core/networking/vswitch"
 	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/resources"
 	"github.com/silenteh/gantryos/core/state"
@@ -11,12 +12,13 @@ import (
 )
 
 type slaveServer struct {
-	slave         *models.Slave
-	writerChannel chan *proto.Envelope
-	readerChannel chan *proto.Envelope
-	tcpClient     *gantryTCPClient
-	masterIp      string
-	masterPort    string
+	slave         *models.Slave        // the slave model
+	writerChannel chan *proto.Envelope // the writer channel to send info the to master
+	readerChannel chan *proto.Envelope // the reader channels for communications from the master
+	tcpClient     *gantryTCPClient     // the tcp client connection to the master
+	masterIp      string               // the master IP
+	masterPort    string               // the master port to send the messages to
+	vswitch       vswitch.Vswitch      // the vswitch which contains the VPCs and other info
 }
 
 func newSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, writerChannel chan *proto.Envelope) slaveServer {
@@ -54,6 +56,27 @@ func newSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope, w
 	slave.slave = slaveInfo
 
 	return slave
+
+}
+
+func (s *slaveServer) initVswitch() {
+	// create the vswitch manager
+	vswitchHost := "127.0.0.1"
+	vswitchPort := "6633"
+	if config.GantryOSConfig.Slave.VSwitchServer.Hostname != "" {
+		vswitchHost = config.GantryOSConfig.Slave.VSwitchServer.Hostname
+	}
+
+	if config.GantryOSConfig.Slave.VSwitchServer.Port != "" {
+		vswitchPort = config.GantryOSConfig.Slave.VSwitchServer.Port
+	}
+
+	vswitch, err := vswitch.InitVSwitch(vswitchHost, vswitchPort)
+	if err != nil {
+		log.Errorln(err)
+	} else {
+		s.vswitch = vswitch
+	}
 
 }
 
@@ -115,6 +138,9 @@ func StartSlave(masterIp, masterPort string, readerChannel chan *proto.Envelope,
 
 	// create a new slave client
 	slave := newSlave(masterIp, masterPort, readerChannel, writerChannel)
+
+	// init the VSwitch connection and default switch
+	slave.initVswitch()
 
 	// init the TCP connection with the amster
 	slave.initTcpClient()

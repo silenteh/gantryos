@@ -1,6 +1,6 @@
 // +build integration
 
-package ovsdb
+package vswitch
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func TestGetBridgeUUID(t *testing.T) {
 	testBridge := "br1"
 	additionalPort := testBridge + "_1"
 
-	client, err := NewOVSDBClient(ovsdbTestServer, "6633")
+	client, err := newOVSDBClient(ovsdbTestServer, "6633")
 	if err != nil {
 		t.Error(err)
 	}
@@ -35,10 +35,10 @@ func TestGetBridgeUUID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		addPort(additionalPort, bridgeUUID, "test_vpc", 5, vInterface{}, client)
+		addPort(additionalPort, bridgeUUID, "test_vpc", 5, VInterface{}, client)
 
 		// this should throw an error !
-		if _, _, err := addPort(additionalPort, bridgeUUID, "test_vpc", 5, vInterface{}, client); err == nil {
+		if _, _, err := addPort(additionalPort, bridgeUUID, "test_vpc", 5, VInterface{}, client); err == nil {
 			t.Error("Error not thrown by the addPort ops !")
 		}
 	}
@@ -58,7 +58,7 @@ func TestGetBridgeUUID(t *testing.T) {
 
 	//fmt.Println(vswitch.toJson())
 
-	ports := vswitch.VPCs["5"].Ports
+	ports := vswitch.VPCs[5].Ports
 
 	if len(ports) == 0 {
 		t.Error("There must be at least 1 ports !")
@@ -80,7 +80,7 @@ func TestGetVPort(t *testing.T) {
 	testBridge := "br4"
 	additionalInterface := testBridge + "_additional"
 
-	client, err := NewOVSDBClient(ovsdbTestServer, "6633")
+	client, err := newOVSDBClient(ovsdbTestServer, "6633")
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,12 +111,12 @@ func TestGetVPort(t *testing.T) {
 		t.Error(err)
 	}
 
-	if _, err := addInterface(additionalInterface, portUUID, client); err != nil {
+	if _, err := addInterface(additionalInterface, portUUID, "", client); err != nil {
 		t.Error(err)
 	}
 
 	// this should throw the error !
-	if _, err := addInterface(additionalInterface, portUUID, client); err == nil {
+	if _, err := addInterface(additionalInterface, portUUID, "", client); err == nil {
 		t.Error("Error not thrown by the addInterface")
 	}
 
@@ -129,7 +129,7 @@ func TestGetVPort(t *testing.T) {
 		t.Error("getVPort should return the default VPC in this case")
 	}
 
-	if vlan != "0" {
+	if vlan != 0 {
 		t.Error("getVPort should return the default VLAN(0) in this case")
 	}
 

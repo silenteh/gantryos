@@ -1,6 +1,6 @@
 // +build integration
 
-package ovsdb
+package vswitch
 
 import (
 	//"fmt"
@@ -8,24 +8,19 @@ import (
 	//"time"
 )
 
-//var ovsdbTestServer string = "192.168.1.107"
+var ovsdbHost string = "192.168.1.107"
+var ovsdbPort string = "6633"
 
 func TestNewVSwitch(t *testing.T) {
 
-	//defaultBridge := "default"
 	testBridge := "br2"
 
-	manager, err := NewOVSDBClient(ovsdbTestServer, "6633")
+	vswitch, err := InitVSwitch(ovsdbHost, ovsdbPort)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	defer manager.Close()
-
-	vswitch, err := InitVSwitch(manager)
-	if err != nil {
-		t.Error(err)
-	}
+	defer vswitch.Close()
 
 	if vswitch.Id == "" {
 		t.Error("New vswitch cannot have an empty Id")
@@ -37,11 +32,11 @@ func TestNewVSwitch(t *testing.T) {
 
 	vpc := vswitch.AddVPC(testBridge, "192.168.10.0/24", 1)
 
-	if _, err := vpc.AddPort(testBridge, vswitch.Id, vpc.Name, "", 1, manager); err != nil {
+	if _, err := vswitch.AddPort(testBridge, vswitch.Id, INTERFACE_INTERNAL, "", 1); err != nil {
 		t.Error(err)
 	}
 
-	if p2, err := vpc.AddPort(testBridge, vswitch.Id, vpc.Name, "123456789", 1, manager); err != nil {
+	if p2, err := vswitch.AddContainerPort(testBridge, vswitch.Id, vpc.Name, "123456789", 1); err != nil {
 		t.Error(err)
 	} else {
 		//fmt.Println(p2)
@@ -52,6 +47,18 @@ func TestNewVSwitch(t *testing.T) {
 		if p2.Interfaces["br2_2"].ContainerId != "123456789" {
 			t.Error("ContainerId should be 123456789 !")
 		}
+
+		// if err := p2.Up("2980"); err != nil {
+		// 	t.Error(err)
+		// }
+
+		// //time.Sleep(30 * time.Second)
+
+		// if err := p2.Down("2980"); err != nil {
+		// 	t.Error(err)
+		// }
+
+		// time.Sleep(30 * time.Second)
 	}
 
 	if len(vpc.Ports) < 2 {
@@ -60,7 +67,7 @@ func TestNewVSwitch(t *testing.T) {
 
 	//fmt.Println(vswitch.toJson())
 
-	if port := vswitch.VPCs[testBridge].Ports[testBridge]; port.Id != "" {
+	if port := vswitch.VPCs[vpc.VLan].Ports[testBridge]; port.Id != "" {
 
 		if len(port.Interfaces) < 1 {
 			t.Error("Port should have at least 1 interface !")
@@ -69,10 +76,12 @@ func TestNewVSwitch(t *testing.T) {
 
 	// check if the load part works before deleting
 
-	loadedVswitch, err := InitVSwitch(manager)
+	loadedVswitch, err := InitVSwitch(ovsdbHost, ovsdbPort)
 	if err != nil {
 		t.Error(err)
 	}
+
+	defer loadedVswitch.Close()
 
 	//fmt.Println(loadedVswitch.toJson())
 
@@ -84,13 +93,13 @@ func TestNewVSwitch(t *testing.T) {
 		t.Error("There should be at least 2 VPCs")
 	}
 
-	vpc0 := loadedVswitch.VPCs["0"]
+	vpc0 := loadedVswitch.VPCs[0]
 
 	if len(vpc0.Ports) < 1 {
 		t.Error("Default VPC has at least 1 port")
 	}
 
-	vpc1 := loadedVswitch.VPCs["1"]
+	vpc1 := loadedVswitch.VPCs[1]
 
 	if len(vpc1.Ports) < 2 {
 		t.Error("Additional VPC with vlan 1 has at least 2 ports")
@@ -107,7 +116,7 @@ func TestNewVSwitch(t *testing.T) {
 
 	// ============================================================
 	// check if the port really still exixts
-	if portUUID, err := getPortUUID(testBridge, manager); err != nil {
+	if portUUID, err := getPortUUID(testBridge, vswitch.manager); err != nil {
 		t.Error(err)
 	} else {
 		if portUUID != "" {
@@ -117,11 +126,11 @@ func TestNewVSwitch(t *testing.T) {
 
 	// ====================================================================
 	// delete the VPC
-	if err := vpc.DeleteVPC(&vswitch, manager); err != nil {
+	if err := vswitch.DeleteVPC(vpc.VLan); err != nil {
 		t.Error(err)
 	}
 
-	if _, ok := vswitch.VPCs["default"].Ports[testBridge]; ok {
+	if _, ok := vswitch.VPCs[0].Ports[testBridge]; ok {
 		t.Error("Port cannot be still in memory on the vswitch VPCs map!")
 	}
 
@@ -129,7 +138,7 @@ func TestNewVSwitch(t *testing.T) {
 		t.Error(err)
 	}
 
-	if bridgeUUID, err := getBridgeUUID("br2", manager); err != nil {
+	if bridgeUUID, err := getBridgeUUID("br2", vswitch.manager); err != nil {
 		t.Error(err)
 	} else {
 		if bridgeUUID != "" {

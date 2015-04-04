@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 import (
 	"encoding/json"
@@ -13,12 +13,12 @@ import (
 //  values in the map.  All of the <pair>s must have the same key and
 //  value types.
 
-type OvsMap struct {
+type ovsMap struct {
 	GoMap map[interface{}]interface{}
 }
 
 // <map> notation requires special handling
-func (o OvsMap) MarshalJSON() ([]byte, error) {
+func (o ovsMap) MarshalJSON() ([]byte, error) {
 	var ovsMap, innerMap []interface{}
 	ovsMap = append(ovsMap, "map")
 	for key, val := range o.GoMap {
@@ -31,7 +31,7 @@ func (o OvsMap) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ovsMap)
 }
 
-func (o *OvsMap) UnmarshalJSON(b []byte) (err error) {
+func (o *ovsMap) UnmarshalJSON(b []byte) (err error) {
 	var oMap []interface{}
 	o.GoMap = make(map[interface{}]interface{})
 	if err := json.Unmarshal(b, &oMap); err == nil && len(oMap) > 1 {
@@ -45,7 +45,7 @@ func (o *OvsMap) UnmarshalJSON(b []byte) (err error) {
 }
 
 // <map> notation requires special marshaling
-func NewOvsMap(goMap interface{}) (*OvsMap, error) {
+func newOvsMap(goMap interface{}) (*ovsMap, error) {
 	v := reflect.ValueOf(goMap)
 	if v.Kind() != reflect.Map {
 		return nil, errors.New("OvsMap supports only Go Map types")
@@ -56,5 +56,5 @@ func NewOvsMap(goMap interface{}) (*OvsMap, error) {
 	for _, key := range keys {
 		genMap[key.Interface()] = v.MapIndex(key).Interface()
 	}
-	return &OvsMap{genMap}, nil
+	return &ovsMap{genMap}, nil
 }

@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 import (
 	"encoding/json"

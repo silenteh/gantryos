@@ -1,11 +1,11 @@
-package ovsdb
+package vswitch
 
 import "encoding/json"
 
-type TransactOperations []interface{}
+type transactOperations []interface{}
 
 // Operation represents an operation according to RFC7047 section 5.2
-type Operation struct {
+type operation struct {
 	Op        string                   `json:"op"`
 	Table     string                   `json:"table,omitempty"`
 	Row       map[string]interface{}   `json:"row,omitempty"`
@@ -19,7 +19,7 @@ type Operation struct {
 	Durable   bool                     `json:"durable,omitempty"`
 }
 
-type CommitOperation struct {
+type commitOperation struct {
 	Op      string `json:"op"`
 	Durable bool   `json:"durable"`
 }
@@ -31,18 +31,18 @@ type CommitOperation struct {
  * Refer to client.go : MonitorAll() function for more details
  */
 
-type MonitorRequests struct {
-	Requests map[string]MonitorRequest `json:"requests,overflow"`
+type monitorRequests struct {
+	Requests map[string]monitorRequest `json:"requests,overflow"`
 }
 
 // MonitorRequest represents a monitor request according to RFC7047
-type MonitorRequest struct {
+type monitorRequest struct {
 	Columns []string      `json:"columns,omitempty"`
-	Select  MonitorSelect `json:"select,omitempty"`
+	Select  monitorSelect `json:"select,omitempty"`
 }
 
 // MonitorSelect represents a monitor select according to RFC7047
-type MonitorSelect struct {
+type monitorSelect struct {
 	Initial bool `json:"initial,omitempty"`
 	Insert  bool `json:"insert,omitempty"`
 	Delete  bool `json:"delete,omitempty"`
@@ -56,42 +56,42 @@ type MonitorSelect struct {
  * The only option is to go with raw map[string]map[string]interface{} option :-( that sucks !
  * Refer to client.go : MonitorAll() function for more details
  */
-type TableUpdates struct {
-	Updates map[string]TableUpdate `json:"updates,overflow"`
+type tableUpdates struct {
+	Updates map[string]tableUpdate `json:"updates,overflow"`
 }
 
-type TableUpdate struct {
-	Rows map[string]RowUpdate `json:"rows,overflow"`
+type tableUpdate struct {
+	Rows map[string]rowUpdate `json:"rows,overflow"`
 }
 
-type RowUpdate struct {
+type rowUpdate struct {
 	Uuid UUID `json:"-,omitempty"`
-	New  Row  `json:"new,omitempty"`
-	Old  Row  `json:"old,omitempty"`
+	New  row  `json:"new,omitempty"`
+	Old  row  `json:"old,omitempty"`
 }
 
 // OvsdbError is an OVS Error Condition
-type OvsdbError struct {
+type ovsdbError struct {
 	Error   string `json:"error"`
 	Details string `json:"details,omitempty"`
 }
 
 // NewCondition creates a new condition as specified in RFC7047
-func NewCondition(column string, function string, value interface{}) []interface{} {
+func newCondition(column string, function string, value interface{}) []interface{} {
 	return []interface{}{column, function, value}
 }
 
 // NewMutation creates a new mutation as specified in RFC7047
-func NewMutation(column string, mutator string, value interface{}) []interface{} {
+func newMutation(column string, mutator string, value interface{}) []interface{} {
 	return []interface{}{column, mutator, value}
 }
 
-type TransactResponse struct {
-	Result []OperationResult `json:"result"`
+type transactResponse struct {
+	Result []operationResult `json:"result"`
 	Error  string            `json:"error"`
 }
 
-type OperationResult struct {
+type operationResult struct {
 	Count   int                      `json:"count,omitempty"`
 	Error   string                   `json:"error,omitempty"`
 	Details string                   `json:"details,omitempty"`
@@ -114,11 +114,11 @@ func ovsSliceToGoNotation(val interface{}) (interface{}, error) {
 			err = json.Unmarshal(bsliced, &uuid)
 			return uuid, err
 		case "set":
-			var oSet OvsSet
+			var oSet ovsSet
 			err = json.Unmarshal(bsliced, &oSet)
 			return oSet, err
 		case "map":
-			var oMap OvsMap
+			var oMap ovsMap
 			err = json.Unmarshal(bsliced, &oMap)
 			return oMap, err
 		}

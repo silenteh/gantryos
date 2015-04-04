@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 // http://json-rpc.org/wiki/specification
 
@@ -38,15 +38,14 @@ type vswitchManager struct {
 	host   string
 	port   string
 	client *rpcjJsonClient
-	//handlers []NotificationHandler
-	schema   map[string]DatabaseSchema
-	cache    map[string]map[string]Row
-	vpcCache Vswitch
+	//handlers []notificationHandler
+	schema map[string]databaseSchema
+	cache  map[string]map[string]row
 }
 
-type NotificationHandler interface {
+type notificationHandler interface {
 	// RFC 7047 section 4.1.6 Update Notification
-	Update(context interface{}, tableUpdates TableUpdates)
+	Update(context interface{}, tableUpdates tableUpdates)
 
 	// RFC 7047 section 4.1.9 Locked Notification
 	Locked([]interface{})
@@ -60,11 +59,11 @@ type NotificationHandler interface {
 
 var transactCounter = 0
 
-func NewOVSDBClient(host, port string) (*vswitchManager, error) {
+func newOVSDBClient(host, port string) (*vswitchManager, error) {
 
 	manager := vswitchManager{}
 
-	c := NewRPCJsonClient(host, port)
+	c := newRPCJsonClient(host, port)
 	if err := c.Connect(); err != nil {
 		return &manager, err
 	}
@@ -72,11 +71,11 @@ func NewOVSDBClient(host, port string) (*vswitchManager, error) {
 	manager.host = host
 	manager.port = port
 	manager.client = &c
-	manager.schema = make(map[string]DatabaseSchema)
-	manager.cache = make(map[string]map[string]Row)
+	manager.schema = make(map[string]databaseSchema)
+	manager.cache = make(map[string]map[string]row)
 
 	// monitor and register the changes in the manager cache
-	notifier := Notifier{manager: manager}
+	notifier := notifier{manager: manager}
 	manager.Register(notifier)
 
 	//get the schema
@@ -139,9 +138,9 @@ func (manager vswitchManager) ListDBs() ([]string, error) {
 	return response, err
 }
 
-func (manager vswitchManager) GetSchema(db string) (*DatabaseSchema, error) {
+func (manager vswitchManager) GetSchema(db string) (*databaseSchema, error) {
 
-	var dbSchema DatabaseSchema
+	var dbSchema databaseSchema
 	dataChan, err := manager.client.Call("get_schema", []string{db}, true)
 	if err != nil {
 		//fmt.Println("ERROR GETTING DB SCHEMA !", err)
@@ -189,26 +188,26 @@ func (manager vswitchManager) Monitor() interface{} {
 	return nil
 }
 
-func (manager vswitchManager) Register(handler NotificationHandler) {
-	manager.client.AddNotificationHandler(handler)
+func (manager vswitchManager) Register(handler notificationHandler) {
+	manager.client.addnotificationHandler(handler)
 }
 
 // Convenience method to monitor every table/column
-func (manager vswitchManager) MonitorAll(database string, jsonContext interface{}) (*TableUpdates, error) {
+func (manager vswitchManager) MonitorAll(database string, jsonContext interface{}) (*tableUpdates, error) {
 	schema, ok := manager.schema[database]
 	if !ok {
 		return nil, errors.New("invalid Database Schema")
 	}
 
-	requests := make(map[string]MonitorRequest)
+	requests := make(map[string]monitorRequest)
 	for table, tableSchema := range schema.Tables {
 		var columns []string
 		for column, _ := range tableSchema.Columns {
 			columns = append(columns, column)
 		}
-		requests[table] = MonitorRequest{
+		requests[table] = monitorRequest{
 			Columns: columns,
-			Select: MonitorSelect{
+			Select: monitorSelect{
 				Initial: true,
 				Insert:  true,
 				Delete:  true,
@@ -219,30 +218,30 @@ func (manager vswitchManager) MonitorAll(database string, jsonContext interface{
 }
 
 // // RFC 7047 : monitor
-func (manager vswitchManager) monitor(database string, jsonContext interface{}, requests map[string]MonitorRequest) (*TableUpdates, error) {
-	var reply TableUpdates
+func (manager vswitchManager) monitor(database string, jsonContext interface{}, requests map[string]monitorRequest) (*tableUpdates, error) {
+	var reply tableUpdates
 
-	args := NewMonitorArgs(database, jsonContext, requests)
+	args := newMonitorArgs(database, jsonContext, requests)
 
 	// This totally sucks. Refer to golang JSON issue #6213
-	var response map[string]map[string]RowUpdate
+	var response map[string]map[string]rowUpdate
 	dataChan, err := manager.client.Call("monitor", args, true)
 
 	data := <-dataChan
 	err = json.Unmarshal(data, &response)
 
-	reply = getTableUpdatesFromRawUnmarshal(response)
+	reply = gettableUpdatesFromRawUnmarshal(response)
 	if err != nil {
 		return nil, err
 	}
 	return &reply, err
 }
 
-func getTableUpdatesFromRawUnmarshal(raw map[string]map[string]RowUpdate) TableUpdates {
-	var tableUpdates TableUpdates
-	tableUpdates.Updates = make(map[string]TableUpdate)
+func gettableUpdatesFromRawUnmarshal(raw map[string]map[string]rowUpdate) tableUpdates {
+	var tableUpdates tableUpdates
+	tableUpdates.Updates = make(map[string]tableUpdate)
 	for table, update := range raw {
-		tableUpdate := TableUpdate{update}
+		tableUpdate := tableUpdate{update}
 		tableUpdates.Updates[table] = tableUpdate
 	}
 	return tableUpdates
@@ -255,16 +254,16 @@ func (manager vswitchManager) GetRootUUID() string {
 	return ""
 }
 
-func (manager vswitchManager) populateCache(updates TableUpdates) {
+func (manager vswitchManager) populateCache(updates tableUpdates) {
 	for table, tableUpdate := range updates.Updates {
 		if _, ok := manager.cache[table]; !ok {
-			manager.cache[table] = make(map[string]Row)
+			manager.cache[table] = make(map[string]row)
 
 		}
-		for uuid, row := range tableUpdate.Rows {
-			empty := Row{}
-			if !reflect.DeepEqual(row.New, empty) {
-				manager.cache[table][uuid] = row.New
+		for uuid, trow := range tableUpdate.Rows {
+			empty := row{}
+			if !reflect.DeepEqual(trow.New, empty) {
+				manager.cache[table][uuid] = trow.New
 
 				switch table {
 				case "Bridge":
@@ -279,11 +278,11 @@ func (manager vswitchManager) populateCache(updates TableUpdates) {
 	}
 }
 
-type Notifier struct {
+type notifier struct {
 	manager vswitchManager
 }
 
-func (n Notifier) Update(context interface{}, tableUpdates TableUpdates) {
+func (n notifier) Update(context interface{}, tableUpdates tableUpdates) {
 	//fmt.Println("Got update from monitor")
 	log.Infoln("Update received")
 	n.manager.populateCache(tableUpdates)
@@ -292,27 +291,27 @@ func (n Notifier) Update(context interface{}, tableUpdates TableUpdates) {
 	// 	fmt.Println(k, v)
 	// }
 }
-func (n Notifier) Locked([]interface{}) {
+func (n notifier) Locked([]interface{}) {
 	//fmt.Println("Got locked from monitor")
 	log.Infoln("Locked")
 }
-func (n Notifier) Stolen([]interface{}) {
+func (n notifier) Stolen([]interface{}) {
 	//fmt.Println("Got stolen from monitor")
 	log.Infoln("Stolen")
 }
-func (n Notifier) Echo([]interface{}) {
+func (n notifier) Echo([]interface{}) {
 	//fmt.Println("Got echo from monitor")
 	log.Infoln("Handler got Echo")
 
 }
 
-// func (n Notifier) Disconnected() {
+// func (n notifier) Disconnected() {
 // 	n.manager.client.Close()
 // }
 
-func (manager *vswitchManager) Transact(database, description string, operations TransactOperations) ([]OperationResult, error) {
+func (manager *vswitchManager) Transact(database, description string, operations transactOperations) ([]operationResult, error) {
 	var err error
-	var response []OperationResult
+	var response []operationResult
 
 	dataChan, err := manager.client.Call("transact", operations, true)
 
@@ -335,7 +334,7 @@ func (manager *vswitchManager) Transact(database, description string, operations
 
 func (manager *vswitchManager) lock(trasnactionId string) {
 	var locked map[string]bool
-	id := NewLockArgs("lock_" + trasnactionId)
+	id := newLockArgs("lock_" + trasnactionId)
 
 	dataChan, err := manager.client.Call("lock", id, true)
 	if err != nil {
@@ -354,7 +353,7 @@ func (manager *vswitchManager) lock(trasnactionId string) {
 
 func (manager *vswitchManager) unlock(trasnactionId string) {
 	var locked map[string]bool
-	id := NewLockArgs("unlock_" + trasnactionId)
+	id := newLockArgs("unlock_" + trasnactionId)
 
 	dataChan, err := manager.client.Call("unlock", id, true)
 	if err != nil {

@@ -1,4 +1,4 @@
-package ovsdb
+package vswitch
 
 //import "fmt"
 
@@ -27,7 +27,7 @@ func parseOVSMap(data interface{}) map[string]string {
 	return gosMap
 }
 
-func ParseOVSDBUUID(data interface{}) string {
+func parseOVSDBUUID(data interface{}) string {
 
 	if array, ok := data.([]interface{}); ok {
 		uuid := array[1].(string)
@@ -36,10 +36,10 @@ func ParseOVSDBUUID(data interface{}) string {
 	return ""
 }
 
-func ParseOVSDBOpsResult(data interface{}) OperationResult {
+func parseOVSDBOpsResult(data interface{}) operationResult {
 
-	if res, ok := data.(OperationResult); ok {
+	if res, ok := data.(operationResult); ok {
 		return res
 	}
-	return OperationResult{}
+	return operationResult{}
 }

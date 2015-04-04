@@ -1,12 +1,12 @@
-package ovsdb
+package vswitch
 
 // NewGetSchemaArgs creates a new set of arguments for a get_schemas RPC
-func NewGetSchemaArgs(schema string) []interface{} {
+func newGetSchemaArgs(schema string) []interface{} {
 	return []interface{}{schema}
 }
 
 // NewTransactArgs creates a new set of arguments for a transact RPC
-func NewTransactArgs(database string, addCommit bool, operations ...Operation) TransactOperations {
+func newTransactArgs(database string, addCommit bool, operations ...operation) transactOperations {
 	var dbSlice = make([]interface{}, 1)
 	dbSlice[0] = database
 
@@ -21,27 +21,27 @@ func NewTransactArgs(database string, addCommit bool, operations ...Operation) T
 
 	ops := append(dbSlice, opsSlice...)
 
-	var transactOps TransactOperations
+	var transactOps transactOperations
 	transactOps = ops
 	return transactOps
 }
 
 // NewCancelArgs creates a new set of arguments for a cancel RPC
-func NewCancelArgs(id interface{}) []interface{} {
+func newCancelArgs(id interface{}) []interface{} {
 	return []interface{}{id}
 }
 
 // NewMonitorArgs creates a new set of arguments for a monitor RPC
-func NewMonitorArgs(database string, value interface{}, requests map[string]MonitorRequest) []interface{} {
+func newMonitorArgs(database string, value interface{}, requests map[string]monitorRequest) []interface{} {
 	return []interface{}{database, value, requests}
 }
 
 // NewMonitorCancelArgs creates a new set of arguments for a monitor_cancel RPC
-func NewMonitorCancelArgs(value interface{}) []interface{} {
+func newMonitorCancelArgs(value interface{}) []interface{} {
 	return []interface{}{value}
 }
 
 // NewLockArgs creates a new set of arguments for a lock, steal or unlock RPC
-func NewLockArgs(id interface{}) []interface{} {
+func newLockArgs(id interface{}) []interface{} {
 	return []interface{}{id}
 }
