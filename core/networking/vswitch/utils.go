@@ -1,12 +1,29 @@
 package vswitch
 
 //import "fmt"
+import "strconv"
 
 func parseOVSString(data interface{}) string {
 	if parsed, ok := data.(string); ok {
 		return parsed
 	}
 	return ""
+}
+
+func parseVLANTag(data interface{}) int {
+	if set, ok := data.([]interface{}); ok {
+		ovsset, _ := newOvsSet(set)
+		for _, singleInter := range ovsset.GoSet {
+			if single, ok := singleInter.(string); ok {
+				vlan, _ := strconv.ParseInt(single, 0, 64)
+				return int(vlan)
+			}
+		}
+	}
+	if single, ok := data.(float64); ok {
+		return int(single)
+	}
+	return 0
 }
 
 func parseOVSMap(data interface{}) map[string]string {

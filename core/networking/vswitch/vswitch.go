@@ -164,7 +164,7 @@ func (manager vswitchManager) GetSchema(db string) (*databaseSchema, error) {
 
 func (manager *vswitchManager) AddBridge(bridgeName string, stpEnabled bool) (string, error) {
 
-	return addFullBridge(bridgeName, manager.GetRootUUID(), stpEnabled, manager)
+	return addFullBridge(bridgeName, stpEnabled, manager)
 }
 
 func (manager *vswitchManager) DeleteBridge(bridgeName string) error {
@@ -175,7 +175,7 @@ func (manager *vswitchManager) DeleteBridge(bridgeName string) error {
 		return err
 	}
 
-	if err := deleteBridge(manager.GetRootUUID(), uuidBridge, manager); err != nil {
+	if err := deleteBridge(uuidBridge, manager); err != nil {
 		return err
 	}
 

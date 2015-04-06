@@ -3,7 +3,7 @@ package vswitch
 import (
 	"encoding/json"
 	"errors"
-	//"fmt"
+	_ "fmt"
 	"reflect"
 )
 

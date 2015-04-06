@@ -2,7 +2,8 @@ package vswitch
 
 import (
 	"errors"
-	//"fmt"
+	_ "fmt"
+	//"reflect"
 	"strconv"
 )
 
@@ -28,10 +29,10 @@ func addBridgeOps(bridgeName, rootUUID string, stpEnabled bool) transactOperatio
 	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(bridgeName, INTERFACE_INTERNAL)
 
 	// then the port using the interface UUID
-	insertPortOp, insertPortUUID := newPortOp(bridgeName, insertInterfaceUUID, "default", containerId, containerIface, 0)
+	insertPortOp, insertPortUUID := newPortOp(bridgeName, insertInterfaceUUID, containerId, containerIface, 0)
 
 	// finally the bridge with the port UUID
-	insertBridgeOp, insertBridgeUUID := newBridgeOp(bridgeName, insertPortUUID, stpEnabled)
+	insertBridgeOp, insertBridgeUUID := newBridgeOp(bridgeName, insertPortUUID, stpEnabled, 0)
 
 	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
 	mutateUuid := []UUID{UUID{insertBridgeUUID}}
@@ -54,7 +55,7 @@ func addBridgeOps(bridgeName, rootUUID string, stpEnabled bool) transactOperatio
 }
 
 // Add a bridge + port + interface
-func addFullBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchManager) (string, error) {
+func addFullBridge(bridgeName string, stpEnabled bool, manager *vswitchManager) (string, error) {
 	//fmt.Println("ROOT UUID", manager.GetRootUUID())
 	ops := addBridgeOps(bridgeName, manager.GetRootUUID(), false)
 
@@ -62,15 +63,21 @@ func addFullBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitc
 	if err != nil {
 		return "", err
 	}
+	//fmt.Println(results)
 	err = checkForErrors(results)
+	if err != nil {
+		return "", err
+	}
 
-	res := parseOVSDBOpsResult(results[0])
+	res := parseOVSDBOpsResult(results[2])
 
 	return res.UUID.GoUuid, err
 }
 
 // Add a bridge only without port and interfaces
-func addBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchManager) (string, error) {
+func addBridge(bridgeName string, vlan int, stpEnabled bool, manager *vswitchManager) (string, error) {
+
+	rootUUID := manager.GetRootUUID()
 
 	namedUuid := bridgeName + "_gantryos"
 
@@ -78,6 +85,16 @@ func addBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchMan
 	bridge := make(map[string]interface{})
 	bridge["name"] = bridgeName
 	bridge["stp_enable"] = stpEnabled
+
+	// add additional information about the bridge
+
+	// ovs map
+	gosMap := make(map[string]string)
+	gosMap["gos-vpc-vlan"] = strconv.Itoa(vlan)
+
+	if ovsMap, err := newOvsMap(gosMap); err == nil {
+		bridge["external_ids"] = ovsMap
+	}
 
 	// assign the port to the bridge
 	//bridge["ports"] = newNamedUUID(portUUID)
@@ -113,6 +130,8 @@ func addBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchMan
 		return "", err
 	}
 
+	//fmt.Println("ADD BRIDGE", results)
+
 	err = checkForErrors(results)
 
 	res := parseOVSDBOpsResult(results[0])
@@ -123,13 +142,13 @@ func addBridge(bridgeName, rootUUID string, stpEnabled bool, manager *vswitchMan
 
 // Add a port only with a single interface attached to it (necessary by ovsdb)
 // returns the Port UUID, Interface UUID, error
-func addPort(portName, bridgeUUID, vpcName string, vlan int, vInt VInterface, manager *vswitchManager) (string, string, error) {
+func addPort(portName, ifaceName, bridgeUUID string, vlan int, intType, containerPID, taskID string, manager *vswitchManager) (string, string, error) {
 
 	// interface first, because we need the UUID
-	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(portName, vInt.Type)
+	insertInterfaceOp, insertInterfaceUUID := newInterfaceOp(portName, intType)
 
 	// then the port using the interface UUID
-	insertPortOp, insertPortUUID := newPortOp(portName, insertInterfaceUUID, vInt.ContainerId, vInt.ContainerIface, vpcName, vlan)
+	insertPortOp, insertPortUUID := newPortOp(portName, insertInterfaceUUID, containerPID, taskID, vlan)
 
 	// Inserting a Bridge row in Bridge table requires mutating the open_vswitch table.
 	mutateUuid := []UUID{UUID{insertPortUUID}}
@@ -149,14 +168,26 @@ func addPort(portName, bridgeUUID, vpcName string, vlan int, vInt VInterface, ma
 
 	ops := newTransactArgs("Open_vSwitch", true, operations...)
 
+	// if vlan > 0 {
+	// 	fmt.Println("ADD PORT REQ ###", ops)
+	// }
+
 	results, err := manager.Transact("Open_vSwitch", "ADD_FIRST_PORT", ops)
 	if err != nil {
 		return "", "", err
 	}
 
-	//fmt.Println(results)
+	// if vlan > 0 {
+	// 	fmt.Println("ADD PORT ###", results)
+	// }
 
 	err = checkForErrors(results)
+
+	if err != nil {
+		//fmt.Println("ADD PORT", ops)
+		//fmt.Println("ADD PORT", results)
+		return "", "", err
+	}
 
 	portRes := parseOVSDBOpsResult(results[1])
 	intRes := parseOVSDBOpsResult(results[0])
@@ -193,6 +224,8 @@ func addInterface(interfaceName, portUUID, intType string, manager *vswitchManag
 		return "", err
 	}
 
+	//fmt.Println("Add interface", results)
+
 	err = checkForErrors(results)
 	res := parseOVSDBOpsResult(results[0])
 
@@ -200,7 +233,7 @@ func addInterface(interfaceName, portUUID, intType string, manager *vswitchManag
 
 }
 
-func newBridgeOp(bridgeName, portUUID string, stpEnabled bool) (operation, string) {
+func newBridgeOp(bridgeName, portUUID string, stpEnabled bool, vlan int) (operation, string) {
 
 	namedUuid := bridgeName + "_gantryos"
 
@@ -208,6 +241,14 @@ func newBridgeOp(bridgeName, portUUID string, stpEnabled bool) (operation, strin
 	bridge := make(map[string]interface{})
 	bridge["name"] = bridgeName
 	bridge["stp_enable"] = stpEnabled
+
+	// ovs map
+	gosMap := make(map[string]string)
+	gosMap["gos-vpc-vlan"] = strconv.Itoa(vlan)
+
+	if ovsMap, err := newOvsMap(gosMap); err == nil {
+		bridge["external_ids"] = ovsMap
+	}
 
 	// assign the port to the bridge
 	bridge["ports"] = newNamedUUID(portUUID)
@@ -224,35 +265,27 @@ func newBridgeOp(bridgeName, portUUID string, stpEnabled bool) (operation, strin
 
 }
 
-func newPortOp(bridgeName, interfaceUUID, vpcName, containerId, containerIface string, vlan int) (operation, string) {
+func newPortOp(bridgeName, interfaceUUID, containerPID, taskID string, vlan int) (operation, string) {
 	namedUuid := bridgeName + "_port"
 
 	// port definition
 	port := make(map[string]interface{})
 	port["name"] = bridgeName
-	port["tag"] = vlan
-
-	// ovs map
-	gosMap := make(map[string]string)
-	gosMap["gos-vpc-name"] = vpcName
-	gosMap["gos-vpc-id"] = strconv.Itoa(vlan)
-	if containerId != "" {
-		gosMap["container_id"] = containerId
-	}
-	if containerIface != "" {
-		gosMap["container_iface"] = containerIface
+	if vlan > 0 {
+		port["tag"] = vlan
 	}
 
-	if ovsMap, err := newOvsMap(gosMap); err == nil {
-		port["external_ids"] = ovsMap
+	// // ovs map
+	if containerPID != "" && taskID != "" {
+		gosMap := make(map[string]string)
+
+		gosMap["container_pid"] = containerPID
+		gosMap["task_id"] = taskID
+
+		if ovsMap, err := newOvsMap(gosMap); err == nil {
+			port["external_ids"] = ovsMap
+		}
 	}
-
-	// port["external_ids"] =  //make(map[string]string)
-
-	// if gosMap, ok := port["external_ids"].(map[string]string); ok {
-	// 	gosMap["gos-vpc-name"] = vpcName
-	// 	gosMap["gos-vpc-id"] = strconv.Itoa(vlan)
-	// }
 
 	// assign the interface to the port
 	port["interfaces"] = newNamedUUID(interfaceUUID)
@@ -285,7 +318,7 @@ func newInterfaceOp(bridgeName, intType string) (operation, string) {
 	return insertOp, namedUuid
 }
 
-func deleteBridge(rootUUID, bridgeUUID string, manager *vswitchManager) error {
+func deleteBridge(bridgeUUID string, manager *vswitchManager) error {
 
 	deleteBridgeoperation := operation{
 		Op:    "delete",
@@ -297,7 +330,7 @@ func deleteBridge(rootUUID, bridgeUUID string, manager *vswitchManager) error {
 	mutateUuid := []UUID{UUID{bridgeUUID}}
 	mutateSet, _ := newOvsSet(mutateUuid)
 	mutation := newMutation("bridges", "delete", mutateSet)
-	condition := newCondition("_uuid", "==", UUID{rootUUID})
+	condition := newCondition("_uuid", "==", UUID{manager.GetRootUUID()})
 
 	// // simple mutate operation
 	mutateOp := operation{
@@ -338,6 +371,8 @@ func getBridgeUUID(bridgeName string, manager *vswitchManager) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	//fmt.Println("getBridgeUUID", results)
 
 	err = checkForErrors(results)
 
@@ -380,78 +415,150 @@ func getPortUUID(portName string, manager *vswitchManager) (string, error) {
 }
 
 // returns the UUIDs of the ports setup on the bridge
-func getAllBridgePorts(bridgeUUID, rootUUID string, manager *vswitchManager) (Vswitch, error) {
+func getVswitch(manager *vswitchManager) (Vswitch, error) {
 
-	vswitch := Vswitch{
-		RootId: rootUUID,
-		Id:     bridgeUUID,
-		VPCs:   make(map[int]vpc),
-	}
+	vswitch := newVSwitch(manager)
 
-	condition := newCondition("_uuid", "==", UUID{bridgeUUID})
+	condition := newCondition("_uuid", "==", UUID{manager.GetRootUUID()})
 
 	selectPortOp := operation{
-		Op:    "select",
-		Table: "Bridge",
-		Where: []interface{}{condition},
+		Op:      "select",
+		Table:   "Open_vSwitch",
+		Where:   []interface{}{condition},
+		Columns: []string{"bridges"},
 	}
 	operations := []operation{selectPortOp}
 
 	ops := newTransactArgs("Open_vSwitch", false, operations...)
 
-	data, err := manager.Transact("Open_vSwitch", "GET_ALL_PORT_UUID", ops)
+	data, err := manager.Transact("Open_vSwitch", "GET_VSWITCH", ops)
 	if err != nil {
 		return vswitch, err
 	}
 
 	err = checkForErrors(data)
+	if err != nil {
+		return vswitch, err
+	}
 
 	if len(data[0].Rows) > 0 {
-		vswitch.Name = parseOVSString(data[0].Rows[0]["name"])
-		set, err := newOvsSet(data[0].Rows[0]["ports"])
+
+		// =======================
+		uuidsSet, err := newOvsSet(data[0].Rows[0]["bridges"])
 		if err != nil {
 			return vswitch, err
 		}
+		// =======================
 
-		// get the VPorts UUIDs
-		uuids := set.GetUUIDs()
-
-		// range over them
-		for _, portUUID := range uuids {
-			// get the VPort info
-			port, vpcName, vlan, portError := getVPort(portUUID, manager)
-
-			if portError != nil {
-				err = portError
-			}
-			// check if we have already a VPC associated with the vswitch
-			// if not create it
-			if _, ok := vswitch.VPCs[vlan]; !ok {
-				vswitch.VPCs[vlan] = vpc{
-					Name:  vpcName,
-					VLan:  vlan,
-					Ports: make(map[string]VPort),
-				}
-
+		for _, bridgeUUID := range uuidsSet.GetUUIDs() {
+			// get the each VPC
+			vpc, err := getVPC(bridgeUUID, manager)
+			if err != nil {
+				return vswitch, err
 			}
 
-			// if the VPort has Id and Name then add it
-			if port.Id != "" && port.Name != "" {
-				vswitch.VPCs[vlan].Ports[port.Name] = port
+			// check for VPC consustency
+			if vpc.Name == "" {
+				return vswitch, errors.New("VPC cannot have an empty name")
 			}
+
+			// assign the VPC to the vswitch
+			vswitch.VPCs[vpc.VLan] = vpc
 		}
+
 	}
 
 	return vswitch, err
 
 }
 
-func getVPort(portUUID string, manager *vswitchManager) (VPort, string, int, error) {
+func getVPC(bridgeUUID string, manager *vswitchManager) (Vpc, error) {
+
+	vpc := Vpc{}
+	portsUUIDS := []string{}
+	vlan := 0
+
+	condition := newCondition("_uuid", "==", UUID{bridgeUUID})
+
+	selectBridgeOp := operation{
+		Op:    "select",
+		Table: "Bridge",
+		Where: []interface{}{condition},
+	}
+	operations := []operation{selectBridgeOp}
+
+	ops := newTransactArgs("Open_vSwitch", false, operations...)
+
+	data, err := manager.Transact("Open_vSwitch", "GET_BRIDGE_INFO", ops)
+	if err != nil {
+		return vpc, err
+	}
+
+	//fmt.Println("GET VPC ##### ", data[0].Rows)
+	err = checkForErrors(data)
+
+	// parse result
+	if len(data[0].Rows) > 0 {
+
+		// get VPC info
+		if ovsMap, ok := data[0].Rows[0]["external_ids"].([]interface{}); ok {
+			gosMap := parseOVSMap(ovsMap)
+			//fmt.Println("VPC GET VLAN ###", gosMap["gos-vpc-vlan"])
+			tempVlan, _ := strconv.ParseInt(gosMap["gos-vpc-vlan"], 0, 64)
+			vlan = int(tempVlan)
+
+			//fmt.Println("VPC VLAN ###", gosMap["gos-vpc-vlan"])
+
+			// this automaticlaly initializes the maps
+			vpc = newVPC(vlan)
+		}
+
+		// assign the UUID because it means the bridge was found
+		vpc.Id = bridgeUUID
+
+		// get the bridge name or vpc name they are the same
+		vpc.Name = parseOVSString(data[0].Rows[0]["name"])
+
+		stpEnabled, _ := strconv.ParseBool(parseOVSString(data[0].Rows[0]["stp_enable"]))
+
+		vpc.STPEnabled = stpEnabled
+
+		// =======================
+		uuidsSet, err := newOvsSet(data[0].Rows[0]["ports"])
+		if err != nil {
+			return vpc, err
+		}
+		portsUUIDS = uuidsSet.GetUUIDs()
+
+		// get all the VPORTS
+		for _, portUUID := range portsUUIDS {
+
+			// get the VPort info
+			port, vlan, portError := getVPort(portUUID, manager)
+
+			if portError != nil {
+				return vpc, err
+			}
+
+			if vpc.VLan != vlan {
+				return vpc, errors.New("Severe: The VPC Vlan and the Tag vlan of the port do not match !")
+			}
+
+			// if the VPort has Id and Name then add it
+			if port.Id != "" && port.Name != "" {
+				vpc.Ports[port.Name] = port
+			}
+		}
+
+	}
+
+	return vpc, err
+
+}
+
+func getVPort(portUUID string, manager *vswitchManager) (VPort, int, error) {
 	port := newVPort()
-	var vpcName string
-	var vlan int = -1
-	var containerId string
-	var containerIface string
+	var vlan int = 0
 
 	condition := newCondition("_uuid", "==", UUID{portUUID})
 
@@ -466,7 +573,7 @@ func getVPort(portUUID string, manager *vswitchManager) (VPort, string, int, err
 
 	data, err := manager.Transact("Open_vSwitch", "GET_PORT_INFO", ops)
 	if err != nil {
-		return port, vpcName, vlan, err
+		return port, vlan, err
 	}
 
 	//fmt.Println(data[0].Rows)
@@ -477,20 +584,19 @@ func getVPort(portUUID string, manager *vswitchManager) (VPort, string, int, err
 	if len(data[0].Rows) > 0 {
 		port.Name = parseOVSString(data[0].Rows[0]["name"])
 
+		vlan = parseVLANTag(data[0].Rows[0]["tag"])
+		port.Tag = vlan
+
 		// get VPC info
 		if ovsMap, ok := data[0].Rows[0]["external_ids"].([]interface{}); ok {
 			gosMap := parseOVSMap(ovsMap)
-			//fmt.Println(gosMap)
-			vpcName = gosMap["gos-vpc-name"]
-			tempVlan, _ := strconv.ParseInt(gosMap["gos-vpc-id"], 0, 64)
-			vlan = int(tempVlan)
-			containerId = gosMap["container_id"]
-			containerIface = gosMap["container_iface"]
+			port.ContainerPID = gosMap["container_pid"]
+			port.TaskId = gosMap["task_id"]
 		}
 
 		set, err := newOvsSet(data[0].Rows[0]["interfaces"])
 		if err != nil {
-			return port, vpcName, vlan, err
+			return port, vlan, err
 		}
 		for _, intUUID := range set.GetUUIDs() {
 			vInt, intErr := getVInterface(intUUID, manager)
@@ -499,16 +605,13 @@ func getVPort(portUUID string, manager *vswitchManager) (VPort, string, int, err
 				err = intErr
 			}
 
-			vInt.ContainerId = containerId
-			vInt.ContainerIface = containerIface
-
 			if vInt.Name != "" {
-				port.Interfaces[vInt.Name] = vInt
+				port.Interfaces = append(port.Interfaces, vInt)
 			}
 		}
 	}
 
-	return port, vpcName, vlan, err
+	return port, vlan, err
 }
 
 func getVInterface(interfaceUUID string, manager *vswitchManager) (VInterface, error) {

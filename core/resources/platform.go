@@ -12,6 +12,7 @@ type platform struct {
 	OS      string
 	Version string
 	Family  string
+	Type    string
 }
 
 // this one matches Fedora Rawhide, which is the development branch of Fedora.
@@ -43,27 +44,36 @@ func (lsb *lsb) Description() string {
 	return utils.ExecCommand(true, "lsb_release", "-ds")
 }
 
-func detectPlatform() platform {
+func DetectPlatform() platform {
 	platform := detectSpecificPlatform()
 	switch platform.OS {
 	case "debian", "ubuntu", "linuxmint", "raspbian":
 		platform.Family = "debian"
+		platform.Type = LINUX
 	case "fedora":
 		platform.Family = "fedora"
+		platform.Type = LINUX
 	case "oracle", "centos", "redhat", "scientific", "enterpriseenterprise", "amazon", "xenserver", "cloudlinux", "ibm_powerkvm", "parallels":
 		platform.Family = "rhel"
+		platform.Type = LINUX
 	case "suse":
 		platform.Family = "suse"
+		platform.Type = LINUX
 	case "gentoo":
 		platform.Family = "gentoo"
+		platform.Type = LINUX
 	case "slackware":
 		platform.Family = "slackware"
+		platform.Type = LINUX
 	case "arch":
 		platform.Family = "arch"
+		platform.Type = LINUX
 	case "exherbo":
 		platform.Family = "exherbo"
+		platform.Type = LINUX
 	default:
 		platform.Family = "unknown"
+		platform.Type = UNKNOWN
 	}
 
 	return platform
@@ -71,7 +81,7 @@ func detectPlatform() platform {
 
 func detectSpecificPlatform() platform {
 
-	platform := platform{"Unknown", "Unknown", "Unknown"}
+	platform := platform{"Unknown", "Unknown", "Unknown", UNKNOWN}
 
 	if utils.FileExists("/etc/oracle-release") {
 		content := utils.ReadFileToString("/etc/oracle-release")

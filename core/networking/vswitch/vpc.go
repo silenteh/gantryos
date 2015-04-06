@@ -5,74 +5,108 @@ package vswitch
 import (
 	"encoding/json"
 	"errors"
+	//"fmt"
 	log "github.com/Sirupsen/logrus"
 	//"math/rand"
+	"github.com/silenteh/gantryos/core/resources"
 	"github.com/silenteh/gantryos/utils"
 	"net"
 	"os"
 	"strconv"
+	"sync"
 )
 
 // MODELS
 var defaultNetwork string = "192.168.100.0/24"
 
-// type address struct {
-// 	DHCP    bool          // are the info set via DHCP ?
-// 	Address net.IPAddr    // ip address and netmask
-// 	Gateway net.IPAddr    // gateway
-// 	Dns     []net.IPAddr  // dns config
-// 	Iface   net.Interface // this is the interface we attach the vswitch to
-// }
+type networkConf struct {
+	DHCP         bool          // are the info set via DHCP ?
+	IP           string        // ip address and netmask
+	Net          string        // ip network
+	IPNet        string        // ip  + net
+	GatewayIP    string        // gateway
+	GatewayNet   string        // gateway
+	GatewayIPNet string        // gateway
+	Dns          []string      // dns config
+	Iface        net.Interface // this is the interface we attach the vswitch to
+}
 
 // local slave switch
 type Vswitch struct {
-	RootId     string // ovsdb root UUID
-	Id         string // bridge UUID
-	Name       string
-	STPEnabled bool
-	VPCs       map[int]vpc // VPC vlan
-	manager    *vswitchManager
+	RootId  string      // ovsdb root UUID
+	mutex   sync.Mutex  // mutex for adding and removing entries to the VPCs map
+	VPCs    map[int]Vpc // VPC vlan
+	manager *vswitchManager
 }
 
 // can contain multiple VPCs
-type vpc struct {
-	Name  string           // description name must be unique
-	VLan  int              // vlan ID
-	Ports map[string]VPort // the key here is the port name
-
-	// // network part
-	// Network *net.IPNet        // network of the VPC
-	// UsedIPs map[string]string // map of IP -> interface name
-	// Gateway net.IPAddr        // gateway of this VPC
-	// Dns     []net.IPAddr      // dns config
-
+// when the VPC
+type Vpc struct {
+	Id          string           // bridge UUID
+	STPEnabled  bool             // stp
+	Name        string           // description name must be unique
+	VLan        int              // vlan ID
+	mutex       sync.Mutex       // mutex for adding and removing entries to the Ports map
+	Ports       map[string]VPort // the key here is the port name
+	networkConf networkConf      // the network config for the bridge (here we are interested in the GW because it will be the net config for the bridge)
 }
 
 // each VPC has multiple ports
 type VPort struct {
-	Id         string // uuid
-	Name       string
-	Interfaces map[string]VInterface // Name of the interface
-	Address    net.IPAddr
+	Id           string       // uuid
+	Name         string       // the port name
+	Tag          int          // the vlan tag
+	Interfaces   []VInterface // Name of the interface
+	NetConf      networkConf  // network configuration
+	ContainerPID string       // the container PID - necessary for linking the container namespace
+	TaskId       string       // the task ID - to know to which task this port belongs to. If the process dies we can remove it
 }
 
 // each port has an interface
 type VInterface struct {
-	Id             string // uuid
-	Name           string
-	Type           string
-	ContainerId    string
-	ContainerIface string
+	Id   string // uuid
+	Name string // the name of the interface: ethN
+	Type string // the type of the interface - mostly will be internal
 }
 
 // ===================================================
 
-func newVPC(name string, vlan int) vpc {
-	vpc := vpc{
-		Name:  name,
+func NewNetworkConf(dhcp bool, ipAddress, gw string, dns []string) (networkConf, error) {
+
+	netConf := networkConf{}
+
+	gwIp, gwNet, err := net.ParseCIDR(gw)
+	if err != nil {
+		return netConf, err
+	}
+
+	ip, ipNet, err := net.ParseCIDR(ipAddress)
+	if err != nil {
+		return netConf, err
+	}
+
+	allDns := []string{}
+	for _, d := range dns {
+		allDns = append(allDns, net.ParseIP(d).String())
+	}
+
+	return networkConf{
+		DHCP:         dhcp,
+		IP:           ip.String(),
+		Net:          ipNet.String(),
+		IPNet:        ipAddress,
+		GatewayIP:    gwIp.String(),
+		GatewayNet:   gwNet.String(),
+		GatewayIPNet: gw,
+		Dns:          allDns,
+	}, nil
+}
+
+func newVPC(vlan int) Vpc {
+	vpc := Vpc{
+		Name:  createVPCName(vlan),
 		VLan:  vlan,
 		Ports: make(map[string]VPort),
-		//UsedIPs: make(map[string]string),
 	}
 
 	return vpc
@@ -80,14 +114,23 @@ func newVPC(name string, vlan int) vpc {
 
 func newVPort() VPort {
 	port := VPort{
-		Interfaces: make(map[string]VInterface),
+		Interfaces: []VInterface{},
 	}
 	return port
+}
+
+func (port VPort) hasInterfaces() bool {
+	return port.totalInterfaces() > 0
+}
+
+func (port VPort) totalInterfaces() int {
+	return len(port.Interfaces)
 }
 
 func (vswitch *Vswitch) toJson() string {
 	data, err := json.Marshal(vswitch)
 	if err != nil {
+		log.Errorln(err)
 		return ""
 	}
 	return string(data)
@@ -103,60 +146,108 @@ func (vswitch *Vswitch) Close() error {
 }
 
 // called only if the default switch is not present
-func (vswitch *Vswitch) initDefaultVswitch(name string) error {
+func (vswitch *Vswitch) initDefaultVswitch() error {
 	vlan := 0
-
-	// add the bridge
-	bridgeUUID, err := addBridge(name, vswitch.RootId, vswitch.STPEnabled, vswitch.manager)
-	if err != nil {
-		return err
-	}
-	vswitch.Id = bridgeUUID
+	containerPID := ""
+	taskID := ""
 
 	// ad a vpc
-	vswitch.AddVPC(name, defaultNetwork, vlan)
-	if _, err := vswitch.AddPort(bridgeUUID, name, INTERFACE_INTERNAL, "", vlan); err != nil {
+	if _, err := vswitch.AddVPC(vlan); err != nil {
+		return err
+	}
+	if _, err := vswitch.AddPort(INTERFACE_INTERNAL, containerPID, taskID, vlan); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (vswitch *Vswitch) AddVPC(name, cidr string, vlan int) *vpc {
+func (vswitch *Vswitch) AddVPC(vlan int) (Vpc, error) {
 
-	vpc := vpc{
-		Name:  name,
-		VLan:  vlan,
-		Ports: make(map[string]VPort),
+	containerPID := ""
+	taskID := ""
+	intType := INTERFACE_INTERNAL
+
+	name := createVPCName(vlan)
+
+	// if the vpc exists already the return it
+	if vpc, ok := vswitch.VPCs[vlan]; ok {
+		return vpc, nil
 	}
 
+	// otherwise create it new
+	vpc := Vpc{
+		Name:       name,
+		VLan:       vlan,
+		Ports:      make(map[string]VPort),
+		STPEnabled: true,
+	}
+
+	// add the bridge associated with the VPC
+	bridgeUUID, err := addBridge(vpc.Name, vpc.VLan, vpc.STPEnabled, vswitch.manager)
+	if err != nil {
+		return vpc, err
+	}
+	vpc.Id = bridgeUUID
+
+	portUUID, intUUID, err := addPort(name, name, bridgeUUID, vlan, intType, containerPID, taskID, vswitch.manager)
+	if err != nil {
+		return vpc, err
+	}
+
+	port := newVPort()
+	port.Id = portUUID
+	port.Name = name
+	port.Tag = vlan
+
+	vint := VInterface{
+		Id:   intUUID,
+		Name: name,
+		Type: intType,
+	}
+
+	port.Interfaces = append(port.Interfaces, vint)
+	vpc.Ports[name] = port
+
+	vswitch.mutex.Lock()
 	vswitch.VPCs[vlan] = vpc
-	return &vpc
+	vswitch.mutex.Unlock()
+
+	return vpc, nil
 
 }
 
-func (vswitch *Vswitch) DeleteVPC(vpcName int) error {
+func createVPCName(vlan int) string {
+	if vlan <= 0 {
+		return "gbr0"
+	}
+	return "gbr" + strconv.Itoa(vlan)
+}
 
-	vpc, ok := vswitch.VPCs[vpcName]
+func (vswitch *Vswitch) DeleteVPC(vlan int) error {
+
+	vpc, ok := vswitch.VPCs[vlan]
 	if !ok {
-		return errors.New("Not such vpc: " + strconv.Itoa(vpcName))
+		return errors.New("Not such vpc: " + strconv.Itoa(vlan))
 	}
 
+	vpc.mutex.Lock()
+	defer vpc.mutex.Unlock()
+
 	// loop through ports
+
 	for pk, p := range vpc.Ports {
 		// loop thorugh interfaces
-		for ik, i := range p.Interfaces {
-			// if err := deleteInterface(p.Id, i.Id, manager); err != nil {
-			// 	return err
-			// }
-			// if i.Type != "internal" {
-			// 	utils.ExecCommand(false, "ip", "link", "delete", i.Name)
-			// }
-			log.Info("Deleting interface: ", i.Name)
-			delete(p.Interfaces, ik)
+		if resources.DetectPlatform().Type == resources.LINUX && p.Interfaces[0].Type == INTERFACE_SYSTEM {
+			log.Infoln("ip", "link", "delete", p.Name)
+			log.Infoln(utils.ExecCommand(false, "ip", "link", "delete", p.Name))
 		}
+
+		log.Info("Deleting interfaces")
+		p.Interfaces = []VInterface{}
+
 		// first try to delete physically the port if it succeeds then delete the in memory info
-		if err := deletePort(vswitch.Id, p.Id, vswitch.manager); err != nil {
+		if err := deletePort(vpc.Id, p.Id, vswitch.manager); err != nil {
 			return err
 		}
 		log.Info("Deleting port: ", p.Name)
@@ -164,125 +255,104 @@ func (vswitch *Vswitch) DeleteVPC(vpcName int) error {
 
 	}
 
+	vswitch.mutex.Lock()
+	defer vswitch.mutex.Unlock()
+
+	// delete the bridge
+	if err := deleteBridge(vpc.Id, vswitch.manager); err != nil {
+		return err
+	}
+
+	// remove the VPC from the map
 	delete(vswitch.VPCs, vpc.VLan)
 
 	return nil
 
 }
 
-func (vswitch *Vswitch) DeleteVSwitch() error {
+// func (vswitch *Vswitch) DeleteVSwitch() error {
 
-	for _, vpc := range vswitch.VPCs {
-		if err := vswitch.DeleteVPC(vpc.VLan); err != nil {
-			return err
-		}
-	}
+// 	vswitch.mutex.Lock()
+// 	defer vswitch.mutex.Unlock()
+// 	for _, vpc := range vswitch.VPCs {
+// 		if err := vswitch.DeleteVPC(vpc.VLan); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	if err := deleteBridge(vswitch.RootId, vswitch.Id, vswitch.manager); err != nil {
-		return err
-	}
+// 	if err := deleteBridge(vswitch.RootId, vswitch.Id, vswitch.manager); err != nil {
+// 		return err
+// 	}
 
-	log.Info("Deleting switch: ", vswitch.Name)
-	vswitch.Id = ""
-	vswitch.Name = ""
+// 	log.Info("Deleting switch: ", vswitch.Name)
+// 	vswitch.Id = ""
+// 	vswitch.Name = ""
 
-	return nil
+// 	return nil
 
-}
+// }
 
-func (vswitch *Vswitch) AddPort(bridgeUUID, vpcName, interfaceType, containerId string, vlan int) (VPort, error) {
+func (vswitch *Vswitch) AddPort(interfaceType, containerPID, taskID string, vlan int) (VPort, error) {
 
 	port := newVPort()
-	name, err := vswitch.buildPortName(vlan)
-	if err != nil {
-		return port, err
+	vswitch.mutex.Lock()
+	defer vswitch.mutex.Unlock()
+	vpc, ok := vswitch.VPCs[vlan]
+	if !ok {
+		return port, errors.New("Not such vpc: " + strconv.Itoa(vlan))
 	}
 
+	vpc.mutex.Lock()
+	defer vpc.mutex.Unlock()
+
+	portName := vpc.buildPortName()
+
 	vInt := VInterface{
-		Name: name,
+		Name: portName,
 		Type: interfaceType,
 	}
 
 	// add the containerID and the container iface
-	iFaceName, err := vswitch.buildIfaceName(vlan)
+	ifaceName := port.buildIfaceName()
+
+	if containerPID != "" && taskID != "" {
+		port.ContainerPID = containerPID
+		port.TaskId = taskID
+	}
+
+	if resources.DetectPlatform().Type == resources.LINUX && interfaceType == INTERFACE_SYSTEM {
+		log.Infoln("### Linux OS detected, creating physical interface")
+		log.Infoln("ip", "link", "add", portName, "type", "veth", "peer", "name", containerPortName(portName))
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "add", portName, "type", "veth", "peer", "name", containerPortName(portName)))
+	}
+
+	portUUID, intUUID, err := addPort(portName, ifaceName, vpc.Id, vlan, vInt.Type, port.ContainerPID, port.TaskId, vswitch.manager)
 	if err != nil {
-		return port, err
-	}
-	if containerId != "" {
-		vInt.ContainerId = containerId
-		vInt.ContainerIface = iFaceName
-	}
-
-	portUUID, intUUID, err := addPort(name, bridgeUUID, vpcName, vlan, vInt, vswitch.manager)
-	if err != nil {
-		return port, err
-	}
-
-	vInt.Id = intUUID
-
-	port.Id = portUUID
-	port.Name = name
-	port.Interfaces[name] = vInt
-
-	vpc, ok := vswitch.VPCs[vlan]
-	if !ok {
-		return port, errors.New("Not such vpc: " + strconv.Itoa(vlan))
-	}
-
-	vpc.Ports[name] = port
-
-	return port, nil
-}
-
-func (vswitch *Vswitch) AddContainerPort(portName, bridgeUUID, vpcName, containerId string, vlan int) (VPort, error) {
-
-	port := newVPort()
-	name, err := vswitch.buildPortName(vlan)
-	if err != nil {
-		return port, err
-	}
-
-	vInt := VInterface{
-		Name: name,
-	}
-
-	log.Infoln("ip", "link", "add", name, "type", "veth", "peer", "name", name+"_c")
-	log.Infoln(utils.ExecCommand(false, "ip", "link", "add", name, "type", "veth", "peer", "name", name+"_c"))
-
-	// add the containerID and the container iface
-	// add the containerID and the container iface
-	iFaceName, err := vswitch.buildIfaceName(vlan)
-	if err != nil {
-		return port, err
-	}
-	if containerId != "" {
-		vInt.ContainerId = containerId
-		vInt.ContainerIface = iFaceName
-	}
-
-	portUUID, intUUID, err := addPort(name, bridgeUUID, vpcName, vlan, vInt, vswitch.manager)
-	if err != nil {
+		log.Errorln(err)
 		return port, err
 	}
 
 	vInt.Id = intUUID
 
 	port.Id = portUUID
-	port.Name = name
-	port.Interfaces[name] = vInt
+	port.Name = portName
+	port.Interfaces = []VInterface{vInt}
 
-	vpc, ok := vswitch.VPCs[vlan]
-	if !ok {
-		return port, errors.New("Not such vpc: " + strconv.Itoa(vlan))
-	}
-
-	vpc.Ports[name] = port
+	vpc.Ports[portName] = port
 
 	return port, nil
 }
 
-func (port *VPort) Up(containerPIDid string) error {
+// TODO: this is linux specific !
+// look into libcontainer netlink for syscalls
+func (port *VPort) Up(netConf networkConf, containerPIDid string) error {
+	// if the IS is NOT Linux then skip it
+	if resources.DetectPlatform().Type != resources.LINUX {
+		return nil
+	}
+
 	// /proc/3887/ns/net /var/run/netns/3887
+	utils.CreateDir("/var/run/netns")
 	if err := os.Symlink("/proc/"+containerPIDid+"/ns/net", "/var/run/netns/"+containerPIDid); err != nil {
 		return err
 	}
@@ -290,36 +360,61 @@ func (port *VPort) Up(containerPIDid string) error {
 	// ip link add "${PORTNAME}_l" type veth peer name "${PORTNAME}_c"
 	// create an interface
 
-	// brings up the interface
-	log.Infoln("ip", "link", "set", port.Name, "up")
-	log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "up"))
-
-	// add an ip address
-	log.Infoln("ip", "addr", "add", "192.168.2.1", "dev", port.Name)
-	log.Infoln(utils.ExecCommand(false, "ip", "addr", "add", "192.168.2.1", "dev", port.Name))
-
-	// add the ip route
-	log.Infoln("route", "add", "-net", "192.168.2.0/24", "dev", port.Name)
-	log.Infoln(utils.ExecCommand(false, "route", "add", "-net", "192.168.2.0/24", "dev", port.Name))
-
-	// # Move "${PORTNAME}_c" inside the container and changes its name.
-	// ip link set "${PORTNAME}_c" netns "$PID"
-	log.Infoln("ip", "link", "set", port.Name+"_c", "netns", containerPIDid)
-	log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name+"_c", "netns", containerPIDid))
-
 	// ip netns exec "$PID" ip link set dev "${PORTNAME}_c" name "$INTERFACE"
-	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", port.Name+"_c", "name", port.Interfaces[port.Name].Name+"_c")
-	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", port.Name+"_c", "name", port.Interfaces[port.Name].Name+"_c"))
+	if port.hasInterfaces() {
+		vint := port.Interfaces[0]
+		cPort := containerPortName(port.Name)
+		cInt := containerPortName(vint.Name)
 
-	// ip netns exec "$PID" ip link set "$INTERFACE" up
-	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", port.Interfaces[port.Name].Name+"_c", "up")
-	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", port.Interfaces[port.Name].Name+"_c", "up"))
+		// brings up the port
+		log.Infoln("ip", "link", "set", port.Name, "up")
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "up"))
 
-	// if [ -n "$ADDRESS" ]; then
-	//    ip netns exec "$PID" ip addr add "$ADDRESS" dev "$INTERFACE"
-	// fi
-	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", port.Interfaces[port.Name].Name+"_c")
-	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", port.Interfaces[port.Name].Name+"_c"))
+		// add the ip route
+		log.Infoln("route", "add", "-net", netConf.Net, "dev", port.Name)
+		log.Infoln(utils.ExecCommand(false, "route", "add", "-net", netConf.Net, "dev", port.Name))
+
+		// # Move "${PORTNAME}_c" inside the container and changes its name.
+		// ip link set "${PORTNAME}_c" netns "$PID"
+		log.Infoln("ip", "link", "set", cPort, "netns", containerPIDid)
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", cPort, "netns", containerPIDid))
+
+		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt)
+		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt))
+
+		// ip netns exec "$PID" ip link set "$INTERFACE" up
+		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up")
+		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up"))
+
+		// if [ -n "$ADDRESS" ]; then
+		//    ip netns exec "$PID" ip addr add "$ADDRESS" dev "$INTERFACE"
+		// fi
+		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt)
+		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt))
+
+		// normal network
+		// add the ip route
+		log.Infoln("route", "add", "-net", netConf.Net, "dev", cInt)
+		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "route", "add", "-net", netConf.Net, "dev", cInt))
+
+		// gateway
+		if netConf.GatewayIP != "" {
+
+			// add an ip address
+			log.Infoln("ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name)
+			log.Infoln(utils.ExecCommand(false, "ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name))
+
+			// add the gateway
+			log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP)
+			log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP))
+
+			// masquerade
+			// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
+			log.Infoln("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE")
+			log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE"))
+		}
+
+	}
 
 	// if [ -n "$GATEWAY" ]; then
 	//    ip netns exec "$PID" ip route add default via "$GATEWAY"
@@ -332,6 +427,16 @@ func (port *VPort) Up(containerPIDid string) error {
 
 func (port *VPort) Down(containerPIDid string) error {
 
+	// If the OS is NOT Linux then skip it
+	log.Infoln("*************", resources.OsModel())
+	if resources.DetectPlatform().Type != resources.LINUX {
+		return nil
+	}
+
+	// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
+	log.Infoln("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", "'!"+port.Name+"'", "-s", port.NetConf.Net, "-j", "MASQUERADE")
+	log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-D", "POSTROUTING", "-o", "!"+port.Name, "-s", port.NetConf.Net, "-j", "MASQUERADE"))
+
 	log.Infoln("ip", "link", "delete", port.Name)
 	log.Infoln(utils.ExecCommand(false, "ip", "link", "delete", port.Name))
 	//log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "down"))
@@ -342,31 +447,37 @@ func (port *VPort) Down(containerPIDid string) error {
 	return nil
 }
 
-func (vswitch *Vswitch) buildPortName(vlan int) (string, error) {
-	vpc, ok := vswitch.VPCs[vlan]
-
-	if !ok {
-		return "", errors.New("Not such vpc: " + strconv.Itoa(vlan))
+func (vpc *Vpc) buildPortName() string {
+	total := len(vpc.Ports)
+	name := "geth" + "_" + strconv.Itoa(total)
+	if vpc.VLan >= 0 {
+		name = name + "_vlan_" + strconv.Itoa(vpc.VLan)
 	}
-	return "gos" + "_" + strconv.Itoa(len(vpc.Ports)+1), nil
+	return name
 }
 
-func (vswitch *Vswitch) buildIfaceName(vlan int) (string, error) {
-	ifaceName, err := vswitch.buildPortName(vlan)
-	return "veth_" + ifaceName, err
+func containerPortName(portName string) string {
+	//total := len(vpc.Ports) + 1
+	//return "gos" + "_" + strconv.Itoa(total) + "_vlan_" + strconv.Itoa(vpc.VLan), nil
+	return portName + "_c"
+}
+
+func (port *VPort) buildIfaceName() string {
+	total := len(port.Interfaces)
+	return "eth" + strconv.Itoa(total)
 }
 
 // ======================================================================
 
 func InitVSwitch(host, port string) (Vswitch, error) {
 
+	defaultSwitch := "br0"
+
 	// init the connection
 	manager, err := newOVSDBClient(host, port)
 	if err != nil {
 		return Vswitch{}, err
 	}
-
-	defaultSwitch := "gos0"
 
 	exists, bridgeUUID := bridgeExists(defaultSwitch, manager)
 	if exists {
@@ -375,8 +486,8 @@ func InitVSwitch(host, port string) (Vswitch, error) {
 		return vswitch, err
 	}
 
-	vswitch, err := newVSwitch(defaultSwitch, false, manager)
-	vswitch.manager = manager
+	vswitch := newVSwitch(manager)
+	err = vswitch.initDefaultVswitch()
 
 	return vswitch, err
 
@@ -384,21 +495,18 @@ func InitVSwitch(host, port string) (Vswitch, error) {
 
 func loadVSwitch(bridgeUUID string, manager *vswitchManager) (Vswitch, error) {
 
-	return getAllBridgePorts(bridgeUUID, manager.GetRootUUID(), manager)
+	return getVswitch(manager)
 
 }
 
-func newVSwitch(bridgeName string, stpEnabled bool, manager *vswitchManager) (Vswitch, error) {
+func newVSwitch(manager *vswitchManager) Vswitch {
 
 	vswitch := Vswitch{
 		RootId:  manager.GetRootUUID(),
-		Name:    bridgeName,
-		VPCs:    make(map[int]vpc),
+		VPCs:    make(map[int]Vpc),
 		manager: manager,
 	}
 
-	err := vswitch.initDefaultVswitch(bridgeName)
-
-	return vswitch, err
+	return vswitch
 
 }
