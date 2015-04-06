@@ -32,15 +32,4 @@ func TestNewNetworkConf(t *testing.T) {
 		t.Error("Gateway IP and NET do not match")
 	}
 
-	// add a task
-
-	// vswitch, err := InitVSwitch(ovsdbHost, ovsdbPort)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// defer vswitch.Close()
-
-	//task := mock.MakeGolangHelloTask()
-
 }

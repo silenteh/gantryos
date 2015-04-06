@@ -23,7 +23,7 @@ func InitSlaveDB(dbName string) (StateDB, error) {
 
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
-	state.db, err = bolt.Open(dbName, 0600, &bolt.Options{Timeout: 30 * time.Second})
+	state.db, err = bolt.Open(dbName, 0700, &bolt.Options{Timeout: 30 * time.Second})
 	if err != nil {
 		return state, err
 	}

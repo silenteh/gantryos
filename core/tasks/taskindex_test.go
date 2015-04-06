@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddTaskId(t *testing.T) {
-	dbName := "./test_index.db"
+	dbName := "test_index.db"
 
 	utils.RemoveDir(dbName)
 
@@ -44,10 +44,10 @@ func TestAddTaskId(t *testing.T) {
 
 func TestRemoveTaskId(t *testing.T) {
 
-	dbName := "./test_index_removal.db"
+	dbName := "test_index_removal.db"
 	utils.RemoveDir(dbName)
 
-	stateDb, err := state.InitSlaveDB("./test_index_removal.db")
+	stateDb, err := state.InitSlaveDB("test_index_removal.db")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestRemoveTaskId(t *testing.T) {
 	}
 
 	stateDb.Close()
-	utils.RemoveDir("./test_index_removal.db")
+	utils.RemoveDir("test_index_removal.db")
 
 	fmt.Println("- task index removal: OK")
 

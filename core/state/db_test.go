@@ -11,7 +11,7 @@ func TestInitSlaveDB(t *testing.T) {
 	key := "TEST"
 	value := "OK"
 	bucket := "test"
-	dbt, err := InitSlaveDB("./test_db.db")
+	dbt, err := InitSlaveDB("test_db.db")
 
 	if err != nil {
 		t.Fatal(err)
@@ -80,8 +80,8 @@ func TestInitSlaveDB(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		fmt.Println(filename)
-		utils.RemoveDir("./" + filename)
-		utils.RemoveDir("./test_db.db")
+		utils.RemoveDir(filename)
+		utils.RemoveDir("test_db.db")
 	}
 
 	fmt.Println("- State: OK")
