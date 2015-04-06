@@ -186,7 +186,7 @@ func (t dockerService) Stop(containerId string, removeVolumes bool) error {
 	return err
 }
 
-func (t dockerService) Status(containerId string) error {
+func (t dockerService) Status(containerId string) (int, error) {
 
 	return statusDockerContainer(t, containerId)
 }
@@ -349,7 +349,10 @@ func stopDockerContainer(task dockerService, removeVolumesOnStop bool, container
 	return err
 }
 
-func statusDockerContainer(task dockerService, containerId string) error {
+// returns the PID of the process running the container and/or the error
+func statusDockerContainer(task dockerService, containerId string) (int, error) {
+
+	PID := -1
 
 	// get the gantry task Id from the container id
 	gantryId := task.taskLookup.GetTaskId(containerId)
@@ -366,7 +369,7 @@ func statusDockerContainer(task dockerService, containerId string) error {
 		err := errors.New("No container found linked to the task id:" + gantryId + " - task LOST ?")
 		taskStatus.Message = err.Error()
 		task.taskStatusEvents <- taskStatus
-		return err
+		return PID, err
 	}
 
 	// it measn we have found the container ID
@@ -378,8 +381,11 @@ func statusDockerContainer(task dockerService, containerId string) error {
 	if err != nil {
 		taskStatus.Message = "Could not inspect the container id:" + containerId
 		task.taskStatusEvents <- taskStatus
-		return err
+		return PID, err
 	}
+
+	PID = container.State.Pid
+	taskStatus.PID = PID
 
 	switch {
 	case container.State.Pid > 0:
@@ -393,7 +399,7 @@ func statusDockerContainer(task dockerService, containerId string) error {
 	}
 
 	task.taskStatusEvents <- taskStatus
-	return nil
+	return PID, nil
 
 }
 

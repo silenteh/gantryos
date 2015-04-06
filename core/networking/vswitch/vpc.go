@@ -60,6 +60,7 @@ type VPort struct {
 	NetConf      networkConf  // network configuration
 	ContainerPID string       // the container PID - necessary for linking the container namespace
 	TaskId       string       // the task ID - to know to which task this port belongs to. If the process dies we can remove it
+	IsGateway    bool         // indicates if this is a bridge port
 }
 
 // each port has an interface
@@ -75,14 +76,28 @@ func NewNetworkConf(dhcp bool, ipAddress, gw string, dns []string) (networkConf,
 
 	netConf := networkConf{}
 
-	gwIp, gwNet, err := net.ParseCIDR(gw)
-	if err != nil {
-		return netConf, err
+	var gwIp string
+	var gwNet string
+
+	var ip string
+	var ipnet string
+
+	if gw != "" {
+		gwIpP, gwNetP, err := net.ParseCIDR(gw)
+		if err != nil {
+			return netConf, err
+		}
+		gwIp = gwIpP.String()
+		gwNet = gwNetP.String()
 	}
 
-	ip, ipNet, err := net.ParseCIDR(ipAddress)
-	if err != nil {
-		return netConf, err
+	if ipAddress != "" {
+		ipP, ipNetP, err := net.ParseCIDR(ipAddress)
+		if err != nil {
+			return netConf, err
+		}
+		ip = ipP.String()
+		ipnet = ipNetP.String()
 	}
 
 	allDns := []string{}
@@ -92,11 +107,11 @@ func NewNetworkConf(dhcp bool, ipAddress, gw string, dns []string) (networkConf,
 
 	return networkConf{
 		DHCP:         dhcp,
-		IP:           ip.String(),
-		Net:          ipNet.String(),
+		IP:           ip,
+		Net:          ipnet,
 		IPNet:        ipAddress,
-		GatewayIP:    gwIp.String(),
-		GatewayNet:   gwNet.String(),
+		GatewayIP:    gwIp,
+		GatewayNet:   gwNet,
 		GatewayIPNet: gw,
 		Dns:          allDns,
 	}, nil
@@ -199,6 +214,7 @@ func (vswitch *Vswitch) AddVPC(vlan int) (Vpc, error) {
 	port.Id = portUUID
 	port.Name = name
 	port.Tag = vlan
+	port.IsGateway = true
 
 	vint := VInterface{
 		Id:   intUUID,
@@ -214,6 +230,10 @@ func (vswitch *Vswitch) AddVPC(vlan int) (Vpc, error) {
 	vswitch.mutex.Unlock()
 
 	return vpc, nil
+
+}
+
+func setIP() {
 
 }
 
@@ -270,6 +290,33 @@ func (vswitch *Vswitch) DeleteVPC(vlan int) error {
 
 }
 
+func (port VPort) Delete() error {
+
+	netConf := port.NetConf
+
+	// this means it's a bridge.
+	if port.IsGateway {
+		// iptables -t nat -A POSTROUTING -s 192.168.2.0/24 -j MASQUERADE
+		log.Infoln("iptables", "-t", "nat", "-D", "POSTROUTING", "-s", netConf.Net, "-j", "MASQUERADE")
+		log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-D", "POSTROUTING", "-s", netConf.Net, "-j", "MASQUERADE"))
+
+		// brind the interface down
+		// bring up the ineterface
+		log.Infoln("ip", "link", "set", port.Interfaces[0].Name, "down")
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Interfaces[0].Name, "down"))
+
+		return nil
+	}
+
+	// bring the interface up
+	// ip netns exec "$PID" ip link set "$INTERFACE" up
+	log.Infoln("ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", port.Interfaces[0].Name, "down")
+	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", port.Interfaces[0].Name, "down"))
+
+	return nil
+
+}
+
 // func (vswitch *Vswitch) DeleteVSwitch() error {
 
 // 	vswitch.mutex.Lock()
@@ -305,7 +352,10 @@ func (vswitch *Vswitch) AddPort(interfaceType, containerPID, taskID string, vlan
 	vpc.mutex.Lock()
 	defer vpc.mutex.Unlock()
 
-	portName := vpc.buildPortName()
+	portName := taskID
+	if taskID == "" {
+		portName = vpc.buildPortName()
+	}
 
 	vInt := VInterface{
 		Name: portName,
@@ -345,76 +395,122 @@ func (vswitch *Vswitch) AddPort(interfaceType, containerPID, taskID string, vlan
 
 // TODO: this is linux specific !
 // look into libcontainer netlink for syscalls
-func (port *VPort) Up(netConf networkConf, containerPIDid string) error {
+func (port VPort) Up() error {
 	// if the IS is NOT Linux then skip it
 	if resources.DetectPlatform().Type != resources.LINUX {
 		return nil
 	}
 
-	// /proc/3887/ns/net /var/run/netns/3887
-	utils.CreateDir("/var/run/netns")
-	if err := os.Symlink("/proc/"+containerPIDid+"/ns/net", "/var/run/netns/"+containerPIDid); err != nil {
-		return err
-	}
+	netConf := port.NetConf
 
-	// ip link add "${PORTNAME}_l" type veth peer name "${PORTNAME}_c"
-	// create an interface
-
-	// ip netns exec "$PID" ip link set dev "${PORTNAME}_c" name "$INTERFACE"
-	if port.hasInterfaces() {
-		vint := port.Interfaces[0]
-		cPort := containerPortName(port.Name)
-		cInt := containerPortName(vint.Name)
-
-		// brings up the port
-		log.Infoln("ip", "link", "set", port.Name, "up")
-		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "up"))
-
-		// add the ip route
-		log.Infoln("route", "add", "-net", netConf.Net, "dev", port.Name)
-		log.Infoln(utils.ExecCommand(false, "route", "add", "-net", netConf.Net, "dev", port.Name))
-
-		// # Move "${PORTNAME}_c" inside the container and changes its name.
-		// ip link set "${PORTNAME}_c" netns "$PID"
-		log.Infoln("ip", "link", "set", cPort, "netns", containerPIDid)
-		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", cPort, "netns", containerPIDid))
-
-		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt)
-		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt))
-
-		// ip netns exec "$PID" ip link set "$INTERFACE" up
-		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up")
-		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up"))
-
-		// if [ -n "$ADDRESS" ]; then
-		//    ip netns exec "$PID" ip addr add "$ADDRESS" dev "$INTERFACE"
-		// fi
-		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt)
-		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt))
-
-		// normal network
-		// add the ip route
-		log.Infoln("route", "add", "-net", netConf.Net, "dev", cInt)
-		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "route", "add", "-net", netConf.Net, "dev", cInt))
-
-		// gateway
-		if netConf.GatewayIP != "" {
-
-			// add an ip address
-			log.Infoln("ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name)
-			log.Infoln(utils.ExecCommand(false, "ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name))
-
-			// add the gateway
-			log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP)
-			log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP))
-
-			// masquerade
-			// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
-			log.Infoln("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE")
-			log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE"))
+	// check if the containerPID is set, if so enable the namespace
+	if port.ContainerPID != "" {
+		utils.CreateDir("/var/run/netns")
+		if err := os.Symlink("/proc/"+port.ContainerPID+"/ns/net", "/var/run/netns/"+port.ContainerPID); err != nil {
+			return err
 		}
 
+		// enable the ip inside the container
+		// # Move "${PORTNAME}_c" inside the container and changes its name.
+		// ip link set "${PORTNAME}_c" netns "$PID"
+		intName := port.Interfaces[0].Name
+		ip := netConf.IP
+		gw := netConf.GatewayIPNet
+		log.Infoln("ip", "link", "set", intName, "netns", port.ContainerPID)
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", intName, "netns", port.ContainerPID))
+
+		// set its ip ad bring it up
+		if ip != "" {
+
+			// set the IP
+			log.Infoln("ip", "netns", "exec", port.ContainerPID, "ip", "addr", "add", ip, "brd + dev", intName)
+			log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", port.ContainerPID, "ip", "addr", "add", ip, "brd + dev", intName))
+
+			// bring the interface up
+			// ip netns exec "$PID" ip link set "$INTERFACE" up
+			log.Infoln("ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", intName, "up")
+			log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", intName, "up"))
+
+			// set the gateway if present
+			if gw != "" {
+				// add the gateway
+				log.Infoln("ip", "netns", "exec", port.ContainerPID, "ip", "route", "add", "default", "gw", gw)
+				log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", port.ContainerPID, "ip", "route", "add", "default", "gw", gw))
+			}
+		}
+
+		return nil
+
 	}
+
+	// add the IP of the GW
+	log.Infoln("ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Interfaces[0].Name)
+	log.Infoln(utils.ExecCommand(false, "ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Interfaces[0].Name))
+
+	// bring up the ineterface
+	log.Infoln("ip", "link", "set", port.Interfaces[0].Name, "up")
+	log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Interfaces[0].Name, "up"))
+
+	// masquerade
+	// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
+	log.Infoln("iptables", "-t", "nat", "-A", "POSTROUTING", "-s", netConf.Net, "-j", "MASQUERADE")
+	log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-A", "POSTROUTING", "-s", netConf.Net, "-j", "MASQUERADE"))
+
+	return nil
+
+	// // ip link add "${PORTNAME}_l" type veth peer name "${PORTNAME}_c"
+	// // create an interface
+
+	// // ip netns exec "$PID" ip link set dev "${PORTNAME}_c" name "$INTERFACE"
+	// if port.hasInterfaces() {
+	// 	vint := port.Interfaces[0]
+	// 	cPort := containerPortName(port.Name)
+	// 	cInt := containerPortName(vint.Name)
+
+	// 	// brings up the port
+	// 	log.Infoln("ip", "link", "set", port.Name, "up")
+	// 	log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "up"))
+
+	// 	// add the ip route
+	// 	log.Infoln("route", "add", "-net", netConf.Net, "dev", port.Name)
+	// 	log.Infoln(utils.ExecCommand(false, "route", "add", "-net", netConf.Net, "dev", port.Name))
+
+	// 	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt)
+	// 	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", "dev", cPort, "name", cInt))
+
+	// 	// ip netns exec "$PID" ip link set "$INTERFACE" up
+	// 	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up")
+	// 	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "link", "set", cInt, "up"))
+
+	// 	// if [ -n "$ADDRESS" ]; then
+	// 	//    ip netns exec "$PID" ip addr add "$ADDRESS" dev "$INTERFACE"
+	// 	// fi
+	// 	log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt)
+	// 	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "addr", "add", "192.168.2.111", "dev", cInt))
+
+	// 	// normal network
+	// 	// add the ip route
+	// 	log.Infoln("route", "add", "-net", netConf.Net, "dev", cInt)
+	// 	log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "route", "add", "-net", netConf.Net, "dev", cInt))
+
+	// 	// gateway
+	// 	if netConf.GatewayIP != "" {
+
+	// 		// add an ip address
+	// 		log.Infoln("ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name)
+	// 		log.Infoln(utils.ExecCommand(false, "ip", "addr", "add", netConf.GatewayIPNet, "brd", "+", "dev", port.Name))
+
+	// 		// add the gateway
+	// 		log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP)
+	// 		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", netConf.GatewayIP))
+
+	// 		// masquerade
+	// 		// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
+	// 		log.Infoln("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE")
+	// 		log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "!"+port.Name, "-s", netConf.Net, "-j", "MASQUERADE"))
+	// 	}
+
+	// }
 
 	// if [ -n "$GATEWAY" ]; then
 	//    ip netns exec "$PID" ip route add default via "$GATEWAY"
@@ -422,10 +518,9 @@ func (port *VPort) Up(netConf networkConf, containerPIDid string) error {
 	//log.Infoln("ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", "192.168.2.1")
 	//log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", containerPIDid, "ip", "route", "add", "default", "via", "192.168.2.1"))
 
-	return nil
 }
 
-func (port *VPort) Down(containerPIDid string) error {
+func (port *VPort) Down() error {
 
 	// If the OS is NOT Linux then skip it
 	log.Infoln("*************", resources.OsModel())
@@ -433,16 +528,24 @@ func (port *VPort) Down(containerPIDid string) error {
 		return nil
 	}
 
-	// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
-	log.Infoln("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", "'!"+port.Name+"'", "-s", port.NetConf.Net, "-j", "MASQUERADE")
-	log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-D", "POSTROUTING", "-o", "!"+port.Name, "-s", port.NetConf.Net, "-j", "MASQUERADE"))
+	if port.ContainerPID != "" {
 
-	log.Infoln("ip", "link", "delete", port.Name)
-	log.Infoln(utils.ExecCommand(false, "ip", "link", "delete", port.Name))
-	//log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Name, "down"))
+		// bring the interface down
+		// ip netns exec "$PID" ip link set "$INTERFACE" down
+		log.Infoln("ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", port.Interfaces[0].Name, "down")
+		log.Infoln(utils.ExecCommand(false, "ip", "netns", "exec", port.ContainerPID, "ip", "link", "set", port.Interfaces[0].Name, "down"))
 
-	if err := os.Remove("/var/run/netns/" + containerPIDid); err != nil {
-		return err
+		if err := os.Remove("/var/run/netns/" + port.ContainerPID); err != nil {
+			return err
+		}
+	} else {
+		// iptables -t nat -A POSTROUTING -o port.Name -j MASQUERADE
+		log.Infoln("iptables", "-t", "nat", "-D", "POSTROUTING", "-s", port.NetConf.Net, "-j", "MASQUERADE")
+		log.Infoln(utils.ExecCommand(false, "iptables", "-t", "nat", "-D", "POSTROUTING", "-s", port.NetConf.Net, "-j", "MASQUERADE"))
+
+		//log.Infoln("ip", "link", "delete", port.Name)
+		//log.Infoln(utils.ExecCommand(false, "ip", "link", "delete", port.Name))
+		log.Infoln(utils.ExecCommand(false, "ip", "link", "set", port.Interfaces[0].Name, "down"))
 	}
 	return nil
 }

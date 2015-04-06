@@ -14,6 +14,7 @@ type TaskStatus struct {
 	Slave     *Slave
 	Timestamp time.Time
 	Healthy   bool // this is based on the health checks
+	PID       int  // task PID
 }
 
 // TODO: implement healthy and message

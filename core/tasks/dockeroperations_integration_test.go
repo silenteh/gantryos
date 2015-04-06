@@ -72,7 +72,7 @@ func TestStartDockerService(t *testing.T) {
 
 	fmt.Println("# Container started successfully")
 
-	if err = service.Status(containerId); err != nil {
+	if _, err = service.Status(containerId); err != nil {
 		t.Error(err)
 	}
 

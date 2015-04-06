@@ -7,9 +7,11 @@ import (
 	"strconv"
 )
 
-var INTERFACE_SYSTEM = ""
-var INTERFACE_INTERNAL = "internal"
-var INTERFACE_VLAN = "vlan"
+const (
+	INTERFACE_SYSTEM   = ""
+	INTERFACE_INTERNAL = "internal"
+	INTERFACE_VLAN     = "vlan"
+)
 
 func newCommitOp() commitOperation {
 	commit := commitOperation{

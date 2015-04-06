@@ -3,9 +3,12 @@ package services
 import (
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/silenteh/gantryos/core/networking/vswitch"
+	"github.com/silenteh/gantryos/core/proto"
 	"github.com/silenteh/gantryos/core/state"
 	"github.com/silenteh/gantryos/core/tasks"
 	"github.com/silenteh/gantryos/models"
+	"strconv"
 )
 
 func (slave *slaveServer) startSlaveListener(stateDB state.StateDB) error {
@@ -45,11 +48,16 @@ func (slave *slaveServer) startSlaveListener(stateDB state.StateDB) error {
 				// get the task information
 				taskInfo := data.GetRunTask().GetTask()
 
-				// try to start the task
+				// start the task
 				_, err := t.Start(taskInfo)
 
 				if err != nil {
 					log.Errorln(err)
+				} else {
+					// add the network port for the newly created container
+					if _, err := slave.vswitch.AddPort(vswitch.INTERFACE_INTERNAL, "", taskInfo.GetTaskId(), 0); err != nil {
+						log.Errorln(err)
+					}
 				}
 
 				// all events are sent back from the docker events listener
@@ -79,8 +87,26 @@ func startDockerEvents(slave *slaveServer, eventsChannel chan *models.TaskStatus
 		if event == nil {
 			break
 		}
+
 		// write the message to the channel
 		slave.taskStateChange(event)
+
+		// bring up or down the network based on the status we got from the task
+		switch event.TaskState {
+		case proto.TaskState_TASK_RUNNING:
+			if port, ok := slave.vswitch.VPCs[0].Ports[event.TaskId]; ok {
+				port.ContainerPID = strconv.Itoa(event.PID)
+				if err := port.Down(); err != nil {
+					log.Errorln(err)
+				}
+			}
+		case proto.TaskState_TASK_FINISHED, proto.TaskState_TASK_KILLED:
+			if port, ok := slave.vswitch.VPCs[0].Ports[event.TaskId]; ok {
+				if err := port.Down(); err != nil {
+					log.Errorln(err)
+				}
+			}
+		}
 
 	}
 
